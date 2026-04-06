@@ -1,52 +1,202 @@
 """
 processor.py — Ядро обробки зображень для PDF пре-пресу.
 
-Містить функції для растеризації PDF, конвертації кольорів,
-геометричних трансформацій та збирання вихідного PDF.
+КЛЮЧОВА КОНЦЕПЦІЯ:
+  ICC-профіль лише призначається (вбудовується як метадані OutputIntent).
+  Числові значення пікселів НЕ змінюються.
+  Растеризація виконується через Ghostscript із прапором
+  -dColorConversionStrategy=/LeaveColorUnchanged, що гарантує збереження
+  оригінальних колірних значень (наприклад, CMYK 0,0,0,100 → залишається 0,0,0,100).
 """
 
 import io
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
-import fitz  # PyMuPDF
 import cv2
-import numpy as np
 import img2pdf
-from PIL import Image, ImageCms
+import numpy as np
+import pikepdf
+from PIL import Image
 
 
-# Шлях до ICC-профілю (поряд з цим файлом)
+# Коренева директорія модуля та папка ICC-профілів
 _HERE = Path(__file__).parent
-_ICC_PATH = _HERE / "ISOcoated_v2_eci.icc"
+ICC_DIR = _HERE / "icc_profiles"   # публічна константа, імпортується gui.py
+
+
+def get_profiles(color_space: str) -> list[str]:
+    """
+    Повертає список файлів ICC/ICM-профілів із підпапки icc_profiles/{color_space}/.
+
+    :param color_space: «cmyk», «rgb» або «gray».
+    :return:            Відсортований список імен файлів (.icc / .icm).
+                        Порожній список, якщо папка не існує або в ній немає профілів.
+    """
+    folder = ICC_DIR / color_space
+    if not folder.is_dir():
+        return []
+    return sorted(
+        f.name for f in folder.iterdir()
+        if f.suffix.lower() in (".icc", ".icm")
+    )
 
 
 # ---------------------------------------------------------------------------
-# 1. Растеризація PDF
+# Внутрішні допоміжники
 # ---------------------------------------------------------------------------
 
-def rasterize_pdf(pdf_path: str, dpi: int = 300) -> list[Image.Image]:
+def _find_ghostscript() -> str | None:
     """
-    Растеризує кожну сторінку PDF у PIL Image із заданим DPI.
-
-    :param pdf_path: Шлях до вхідного PDF-файлу.
-    :param dpi:      Роздільна здатність у точках на дюйм.
-    :return:         Список PIL Image (по одному на сторінку).
+    Знаходить виконуваний файл Ghostscript у PATH.
+    На Windows шукає gswin64c → gswin32c, на Unix — gs.
+    Повертає None, якщо GS не встановлено.
     """
-    pdf_path = str(pdf_path)
-    doc = fitz.open(pdf_path)
-    images = []
+    for name in ("gswin64c", "gswin32c", "gs"):
+        if shutil.which(name):
+            return name
+    return None
 
-    # Масштабний коефіцієнт відносно стандартних 72 DPI у PyMuPDF
+
+# ---------------------------------------------------------------------------
+# 1. Растеризація PDF через Ghostscript
+# ---------------------------------------------------------------------------
+
+def rasterize_pdf(
+    pdf_path: str,
+    dpi: int = 300,
+    colorspace: str = "cmyk",
+) -> list[Image.Image]:
+    """
+    Растеризує кожну сторінку PDF у PIL Image через Ghostscript.
+
+    Ghostscript використовує прапор -dColorConversionStrategy=/LeaveColorUnchanged,
+    який забороняє будь-яке перетворення колірних значень.
+    Числа пікселів у вихідних зображеннях збігаються з оригінальними.
+
+    Якщо Ghostscript не знайдено — використовується PyMuPDF як запасний варіант
+    (лише для RGB; CMYK-значення у цьому режимі не гарантовано збережуться).
+
+    :param pdf_path:    Шлях до вхідного PDF-файлу.
+    :param dpi:         Роздільна здатність у точках на дюйм.
+    :param colorspace:  Цільовий колірний простір: «cmyk», «grayscale», «rgb».
+    :return:            Список PIL Image (по одному на сторінку).
+    """
+    pdf_path = Path(pdf_path)
+    colorspace = colorspace.lower()
+
+    gs_exe = _find_ghostscript()
+
+    if gs_exe:
+        return _rasterize_via_ghostscript(pdf_path, dpi, colorspace, gs_exe)
+    else:
+        print(
+            "[processor] УВАГА: Ghostscript не знайдено. "
+            "Використовується PyMuPDF (RGB). "
+            "Числові значення CMYK можуть змінитись. "
+            "Встановіть Ghostscript для коректної роботи."
+        )
+        return _rasterize_via_pymupdf(pdf_path, dpi, colorspace)
+
+
+def _rasterize_via_ghostscript(
+    pdf_path: Path,
+    dpi: int,
+    colorspace: str,
+    gs_exe: str,
+) -> list[Image.Image]:
+    """
+    Растеризація через Ghostscript.
+    Кожна сторінка зберігається як окремий TIFF у тимчасовій папці.
+    """
+    # Вибір пристрою GS залежно від цільового колірного простору
+    device_map = {
+        "cmyk":      "tiff32nc",   # 4-канальний TIFF, CMYK
+        "grayscale": "tiffgray",   # 1-канальний TIFF, Grayscale
+        "rgb":       "tiff24nc",   # 3-канальний TIFF, RGB
+    }
+    device = device_map.get(colorspace, "tiff32nc")
+
+    with tempfile.TemporaryDirectory(prefix="pdfprepress_") as tmpdir:
+        output_pattern = str(Path(tmpdir) / "page_%04d.tif")
+
+        cmd = [
+            gs_exe,
+            "-dBATCH",
+            "-dNOPAUSE",
+            "-dSAFER",
+            f"-sDEVICE={device}",
+            f"-r{dpi}",
+            # Критичний прапор: заборона будь-якої конвертації кольорів
+            "-dColorConversionStrategy=/LeaveColorUnchanged",
+            # Вимикаємо CIE-нормалізацію (вона може змінювати числа)
+            "-dUseCIEColor=false",
+            f"-sOutputFile={output_pattern}",
+            str(pdf_path),
+        ]
+
+        print(f"[processor] Ghostscript: {' '.join(cmd)}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Ghostscript завершився з помилкою (код {result.returncode}):\n"
+                f"{result.stderr.strip()}"
+            )
+
+        # Зчитуємо всі TIFF-файли у відсортованому порядку
+        tiff_files = sorted(Path(tmpdir).glob("page_*.tif"))
+        if not tiff_files:
+            raise RuntimeError(
+                f"Ghostscript не створив жодного TIFF-файлу. "
+                f"Stderr:\n{result.stderr.strip()}"
+            )
+
+        images = []
+        for tiff_file in tiff_files:
+            img = Image.open(tiff_file).copy()   # .copy() звільняє файловий дескриптор
+            images.append(img)
+
+    return images
+
+
+def _rasterize_via_pymupdf(
+    pdf_path: Path,
+    dpi: int,
+    colorspace: str,
+) -> list[Image.Image]:
+    """
+    Запасний варіант растеризації через PyMuPDF (fitz).
+    Завжди повертає RGB; для CMYK-режиму виконується проста Pillow-конвертація
+    (значення пікселів при цьому змінюються — лише для аварійного запуску).
+    """
+    import fitz  # PyMuPDF
+
     scale = dpi / 72.0
     matrix = fitz.Matrix(scale, scale)
+    doc = fitz.open(str(pdf_path))
+    images = []
 
     for page_num in range(len(doc)):
         page = doc[page_num]
-        # Рендеримо сторінку у піксельний буфер
         pixmap = page.get_pixmap(matrix=matrix, alpha=False)
-        # Конвертуємо у PIL Image через байтовий буфер PNG
         img_bytes = pixmap.tobytes("png")
         pil_img = Image.open(io.BytesIO(img_bytes)).copy()
+
+        # Груба конвертація (без збереження числових значень!)
+        if colorspace == "cmyk" and pil_img.mode != "CMYK":
+            pil_img = pil_img.convert("CMYK")
+        elif colorspace == "grayscale" and pil_img.mode != "L":
+            pil_img = pil_img.convert("L")
+
         images.append(pil_img)
 
     doc.close()
@@ -54,48 +204,30 @@ def rasterize_pdf(pdf_path: str, dpi: int = 300) -> list[Image.Image]:
 
 
 # ---------------------------------------------------------------------------
-# 2. Конвертація у CMYK
+# 2. Конвертація у CMYK (утиліта для прямого виклику / тестів)
 # ---------------------------------------------------------------------------
 
 def convert_to_cmyk(image: Image.Image) -> Image.Image:
     """
-    Конвертує PIL Image у режим CMYK.
+    Конвертує PIL Image у режим CMYK засобами Pillow.
 
-    Якщо поряд із processor.py знаходиться файл ISOcoated_v2_eci.icc,
-    застосовується ICC-перетворення. Інакше — пряма конвертація Pillow.
+    УВАГА: ця функція виконує математичне перерахування пікселів
+    і НЕ гарантує збереження оригінальних колірних значень.
+    У повному циклі обробки (process_pdf) colorspace-конвертація
+    виконується Ghostscript без зміни числових значень.
 
-    :param image: Вхідне зображення (зазвичай RGB або RGBA).
+    :param image: Вхідне зображення.
     :return:      Зображення у режимі CMYK.
     """
-    # Переводимо у RGB, щоб уникнути проблем з RGBA або палітрою
-    if image.mode != "RGB":
+    if image.mode == "CMYK":
+        return image
+    if image.mode not in ("RGB",):
         image = image.convert("RGB")
-
-    if _ICC_PATH.exists():
-        # --- Конвертація через ICC-профіль ---
-        try:
-            # sRGB — стандартний вхідний профіль
-            srgb_profile = ImageCms.createProfile("sRGB")
-            cmyk_profile = ImageCms.getOpenProfile(str(_ICC_PATH))
-
-            transform = ImageCms.buildTransform(
-                srgb_profile,
-                cmyk_profile,
-                inMode="RGB",
-                outMode="CMYK",
-                renderingIntent=ImageCms.Intent.RELATIVE_COLORIMETRIC,
-            )
-            return ImageCms.applyTransform(image, transform)
-        except Exception as exc:
-            # Якщо ICC-перетворення не вдалось — падаємо до простої конвертації
-            print(f"[processor] ICC-перетворення не вдалось: {exc}. Використовується пряма конвертація.")
-
-    # --- Пряма конвертація RGB → CMYK засобами Pillow ---
     return image.convert("CMYK")
 
 
 # ---------------------------------------------------------------------------
-# 3. Конвертація у відтінки сірого
+# 3. Конвертація у відтінки сірого (утиліта для прямого виклику / тестів)
 # ---------------------------------------------------------------------------
 
 def convert_to_grayscale(image: Image.Image) -> Image.Image:
@@ -105,6 +237,8 @@ def convert_to_grayscale(image: Image.Image) -> Image.Image:
     :param image: Вхідне зображення.
     :return:      Зображення у режимі «L».
     """
+    if image.mode == "L":
+        return image
     return image.convert("L")
 
 
@@ -124,17 +258,18 @@ def apply_warp(
         {"tl": (dx, dy), "tr": (dx, dy), "bl": (dx, dy), "br": (dx, dy)}
     Позитивний dx → вправо, позитивний dy → вниз.
 
+    Колірні значення пікселів не змінюються — виконується лише геометрична
+    трансформація координат.
+
     :param image:      Вхідне PIL Image.
     :param corners_mm: Словник зміщень для кожного з чотирьох кутів.
     :param dpi:        Роздільна здатність (для перетворення мм → пікселі).
     :return:           PIL Image після деформації (той самий розмір полотна).
     """
-    # 1 мм = dpi / 25.4 пікселів
     px_per_mm = dpi / 25.4
-
     w, h = image.size
 
-    # Вихідні кути (перед деформацією): TL, TR, BL, BR
+    # Вихідні кути: TL, TR, BL, BR
     src_pts = np.float32([
         [0,     0    ],   # tl
         [w - 1, 0    ],   # tr
@@ -143,11 +278,9 @@ def apply_warp(
     ])
 
     def offset_px(key: str) -> np.ndarray:
-        """Конвертує мм-зміщення у піксельне для заданого кута."""
         dx_mm, dy_mm = corners_mm.get(key, (0.0, 0.0))
         return np.float32([dx_mm * px_per_mm, dy_mm * px_per_mm])
 
-    # Цільові кути (після деформації)
     dst_pts = np.float32([
         src_pts[0] + offset_px("tl"),
         src_pts[1] + offset_px("tr"),
@@ -155,15 +288,11 @@ def apply_warp(
         src_pts[3] + offset_px("br"),
     ])
 
-    # Матриця перспективного перетворення
     M = cv2.getPerspectiveTransform(src_pts, dst_pts)
 
-    # Конвертуємо PIL → NumPy для OpenCV
     original_mode = image.mode
     cv_img = np.array(image)
 
-    # cv2.warpPerspective очікує BGR для кольорових зображень,
-    # але оскільки ми не змінюємо кольори — порядок каналів не важливий
     warped = cv2.warpPerspective(
         cv_img,
         M,
@@ -172,9 +301,8 @@ def apply_warp(
         borderMode=cv2.BORDER_REPLICATE,
     )
 
-    # Повертаємо у PIL Image зі збереженням вихідного режиму.
     # Image.fromarray на 4-канальному масиві повертає "RGBA", а не "CMYK".
-    # Використовуємо frombytes щоб уникнути помилкової колірної конвертації.
+    # Використовуємо frombytes, щоб уникнути помилкової колірної інтерпретації.
     result = Image.fromarray(warped)
     if result.mode != original_mode:
         result = Image.frombytes(original_mode, (w, h), warped.tobytes())
@@ -188,7 +316,9 @@ def apply_warp(
 
 def assemble_pdf(images: list[Image.Image], output_path: str, dpi: int = 300) -> None:
     """
-    Зберігає список PIL Images як єдиний PDF-файл.
+    Зберігає список PIL Images як єдиний PDF-файл через img2pdf.
+
+    Числові значення пікселів передаються без змін.
 
     :param images:      Список зображень (по одному на сторінку).
     :param output_path: Шлях до вихідного PDF.
@@ -199,17 +329,13 @@ def assemble_pdf(images: list[Image.Image], output_path: str, dpi: int = 300) ->
 
     for img in images:
         buf = io.BytesIO()
-        # img2pdf найкраще працює з RGB або L; CMYK теж підтримується
-        save_mode = img.mode
-        if save_mode not in ("RGB", "L", "CMYK"):
+        if img.mode not in ("RGB", "L", "CMYK"):
             img = img.convert("RGB")
-            save_mode = "RGB"
 
-        # Зберігаємо у TIFF із DPI-метаданими
+        # TIFF зберігає числові значення без втрат і підтримує CMYK
         img.save(buf, format="TIFF", dpi=(dpi, dpi))
         img_bytes_list.append(buf.getvalue())
 
-    # Формуємо PDF з правильним розміром сторінки (у точках @ 72 dpi)
     layout_fun = img2pdf.get_fixed_dpi_layout_fun((dpi, dpi))
 
     with open(output_path, "wb") as f:
@@ -217,7 +343,53 @@ def assemble_pdf(images: list[Image.Image], output_path: str, dpi: int = 300) ->
 
 
 # ---------------------------------------------------------------------------
-# 6. Головна функція обробки
+# 6. Призначення ICC-профілю (вбудовування як OutputIntent)
+# ---------------------------------------------------------------------------
+
+def assign_icc_profile(
+    pdf_path: str,
+    icc_path: Path,
+    color_space: str,
+) -> None:
+    """
+    Вбудовує ICC-профіль у готовий PDF як OutputIntent (стандарт PDF/X).
+
+    НЕ змінює числові значення пікселів — лише додає метадані,
+    що описують, у якому колірному просторі вже записані числа.
+    RIP-процесор читає цей тег і коректно інтерпретує дані.
+
+    :param pdf_path:    Шлях до PDF-файлу для модифікації (перезаписується).
+    :param icc_path:    Шлях до .icc-файлу профілю.
+    :param color_space: «CMYK», «Grayscale» або «RGB».
+    """
+    icc_path = Path(icc_path)
+    # Кількість каналів відповідно до колірного простору
+    n_channels = {"CMYK": 4, "Grayscale": 1, "RGB": 3}.get(color_space, 4)
+
+    with pikepdf.open(str(pdf_path), allow_overwriting_input=True) as pdf:
+        icc_data = icc_path.read_bytes()
+
+        icc_stream = pikepdf.Stream(pdf, icc_data)
+        # /N — кількість компонент кольору (обов'язковий ключ для ICC-потоків)
+        icc_stream["/N"] = n_channels
+
+        intent = pikepdf.Dictionary(
+            Type=pikepdf.Name("/OutputIntent"),
+            # /GTS_PDFA1 — стандартний ідентифікатор для друкарських профілів
+            S=pikepdf.Name("/GTS_PDFA1"),
+            OutputConditionIdentifier=pikepdf.String(icc_path.stem),
+            DestOutputProfile=icc_stream,
+        )
+
+        if "/OutputIntents" not in pdf.Root:
+            pdf.Root["/OutputIntents"] = pikepdf.Array()
+        pdf.Root["/OutputIntents"].append(intent)
+
+        pdf.save()
+
+
+# ---------------------------------------------------------------------------
+# 7. Головна функція обробки
 # ---------------------------------------------------------------------------
 
 def process_pdf(
@@ -227,61 +399,88 @@ def process_pdf(
     odd_corners: dict[str, tuple[float, float]],
     even_corners: dict[str, tuple[float, float]],
     output_suffix: str,
+    icc_path: Path | None = None,
 ) -> str:
     """
-    Повний цикл обробки PDF: растеризація → конвертація → (warp) → збірка.
+    Повний цикл обробки PDF:
+      растеризація (GS, без зміни чисел) → warp → збірка PDF → призначення ICC.
 
     :param pdf_path:      Шлях до вхідного PDF.
-    :param mode:          Режим: «cmyk», «grayscale», «cmyk_warp», «grayscale_warp».
+    :param mode:          «cmyk», «grayscale», «cmyk_warp», «grayscale_warp».
     :param dpi:           Роздільна здатність обробки.
     :param odd_corners:   Зміщення кутів для непарних сторінок (мм).
     :param even_corners:  Зміщення кутів для парних сторінок (мм).
     :param output_suffix: Суфікс, що додається до імені файлу перед «.pdf».
+    :param icc_path:      Шлях до .icc-файлу для вбудовування як OutputIntent.
+                          None → профіль не вбудовується.
     :return:              Шлях до вихідного PDF-файлу.
     """
     pdf_path = Path(pdf_path)
     if not pdf_path.exists():
         raise FileNotFoundError(f"Файл не знайдено: {pdf_path}")
 
-    valid_modes = {"cmyk", "grayscale", "cmyk_warp", "grayscale_warp"}
+    valid_modes = {"cmyk", "grayscale", "rgb", "cmyk_warp", "grayscale_warp", "rgb_warp"}
     if mode not in valid_modes:
         raise ValueError(f"Невідомий режим «{mode}». Допустимі: {valid_modes}")
 
-    # --- Растеризація ---
-    print(f"[processor] Растеризація: {pdf_path.name} @ {dpi} DPI")
-    pages = rasterize_pdf(str(pdf_path), dpi=dpi)
-
     use_warp = mode.endswith("_warp")
-    use_cmyk = mode.startswith("cmyk")
+    base_mode = mode.removesuffix("_warp")   # "cmyk" | "grayscale" | "rgb"
+    colorspace = base_mode                   # передається у rasterize_pdf без змін
 
+    # --- Растеризація (Ghostscript зберігає числові значення кольорів) ---
+    print(f"[processor] Растеризація: {pdf_path.name} @ {dpi} DPI  [{colorspace.upper()}]")
+    pages = rasterize_pdf(str(pdf_path), dpi=dpi, colorspace=colorspace)
+    print(f"[processor] Сторінок растеризовано: {len(pages)}")
+
+    # --- Геометрична деформація (за потреби) ---
     processed = []
     for i, page_img in enumerate(pages):
-        page_num = i + 1  # номер сторінки (з 1)
-        is_odd = (page_num % 2 == 1)
+        page_num = i + 1                    # 1-based
+        is_odd   = (page_num % 2 == 1)     # непарна (FRONT) = True
 
-        # --- Конвертація кольору ---
-        if use_cmyk:
-            page_img = convert_to_cmyk(page_img)
-            print(f"[processor] Стор. {page_num}: конвертовано у CMYK")
-        else:
-            page_img = convert_to_grayscale(page_img)
-            print(f"[processor] Стор. {page_num}: конвертовано у відтінки сірого")
-
-        # --- Геометрична деформація (за потреби) ---
         if use_warp:
             corners = odd_corners if is_odd else even_corners
             page_img = apply_warp(page_img, corners, dpi)
-            print(f"[processor] Стор. {page_num}: застосовано warp ({'непарна' if is_odd else 'парна'})")
+            print(
+                f"[processor] Стор. {page_num}: warp "
+                f"({'FRONT/непарна' if is_odd else 'BACK/парна'})"
+            )
 
         processed.append(page_img)
 
-    # --- Формування шляху вихідного файлу ---
+    # --- Формування шляху вихідного файлу (поряд із вхідним, без перезапису) ---
     output_name = pdf_path.stem + output_suffix + ".pdf"
     output_path = pdf_path.parent / output_name
+
+    if output_path.exists():
+        counter = 2
+        while True:
+            candidate = pdf_path.parent / f"{pdf_path.stem}{output_suffix}_{counter}.pdf"
+            if not candidate.exists():
+                output_path = candidate
+                print(f"[processor] Файл вже існує. Збережено як: {output_path.name}")
+                break
+            counter += 1
 
     # --- Збирання PDF ---
     print(f"[processor] Збирання PDF: {output_path.name}")
     assemble_pdf(processed, str(output_path), dpi=dpi)
+
+    # --- Призначення ICC-профілю як метаданих (без зміни пікселів) ---
+    cs_label_map = {"cmyk": "CMYK", "grayscale": "Grayscale", "rgb": "RGB"}
+    cs_label = cs_label_map.get(base_mode, "CMYK")
+
+    if icc_path is not None:
+        icc_path = Path(icc_path)
+        if icc_path.exists():
+            print(f"[processor] Призначення ICC-профілю: {icc_path.name}  [{cs_label}]")
+            assign_icc_profile(str(output_path), icc_path, cs_label)
+            print(f"[processor] {cs_label} профіль призначено (embedded): {icc_path.name}")
+            print(f"[processor] Числові значення кольорів збережено без змін")
+        else:
+            print(f"[processor] УВАГА: ICC-профіль не знайдено: {icc_path} — OutputIntent не додається.")
+    else:
+        print(f"[processor] {cs_label} — без профілю (OutputIntent не додається)")
 
     print(f"[processor] Готово! Збережено: {output_path}")
     return str(output_path)

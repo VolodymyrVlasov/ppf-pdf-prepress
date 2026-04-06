@@ -37,6 +37,16 @@ DEFAULT_SETTINGS: dict = {
     # Суфікси вихідних файлів
     "output_suffix_cmyk": "_CMYK",
     "output_suffix_gray": "_GRAY",
+    "output_suffix_rgb":  "_RGB",
+
+    # ICC-профілі (лише ім'я файлу в підпапці icc_profiles/{cs}/)
+    "use_icc_profile":  True,
+    "icc_profile_cmyk": "",
+    "icc_profile_rgb":  "",
+    "icc_profile_gray": "",
+
+    # Остання папка, відкрита у файловому діалозі
+    "last_folder": "",
 }
 
 

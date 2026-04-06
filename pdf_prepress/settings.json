@@ -37,5 +37,10 @@
     ]
   },
   "output_suffix_cmyk": "_CMYK",
-  "output_suffix_gray": "_GRAY"
+  "output_suffix_gray": "_GRAY",
+  "output_suffix_rgb": "_RGB",
+  "use_icc_profile": true,
+  "icc_profile_cmyk": "",
+  "icc_profile_rgb": "",
+  "icc_profile_gray": ""
 }
