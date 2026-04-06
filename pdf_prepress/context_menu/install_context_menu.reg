@@ -1,0 +1,35 @@
+Windows Registry Editor Version 5.00
+
+; ============================================================
+; PDF Pre-Press — встановлення пункту контекстного меню
+; для файлів .pdf у Windows 10/11
+;
+; Як використовувати:
+;   Двічі клацніть цей файл і підтвердіть імпорт у реєстр.
+;
+; Шлях до exe за замовчуванням:
+;   %USERPROFILE%\pdf_prepress\pdf_prepress.exe
+;
+; Якщо ви встановили програму в інше місце — відредагуйте
+; рядок з командою нижче (ключ [..\open\command]) перед імпортом:
+;   замініть  %USERPROFILE%\\pdf_prepress\\pdf_prepress.exe
+;   на повний шлях до вашого pdf_prepress.exe
+; ============================================================
+
+; --- Батьківський пункт меню з підменю ---
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\PDFPrePress]
+@="PDF Pre-Press"
+"MUIVerb"="PDF Pre-Press"
+"SubCommands"=""
+"Icon"="%USERPROFILE%\\pdf_prepress\\pdf_prepress.exe,0"
+
+; --- Контейнер підменю ---
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\PDFPrePress\shell]
+
+; --- Пункт підменю: відкрити налаштування ---
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\PDFPrePress\shell\open]
+@="Відкрити налаштування"
+
+; --- Команда: передає шлях до файлу як перший аргумент ---
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\PDFPrePress\shell\open\command]
+@="\"%USERPROFILE%\\pdf_prepress\\pdf_prepress.exe\" \"%1\""
