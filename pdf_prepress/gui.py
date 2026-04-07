@@ -124,8 +124,9 @@ class WarpPreviewCanvas(tk.Canvas):
             **kwargs,
         )
 
-        self._odd_vars  = odd_vars
-        self._even_vars = even_vars
+        self._odd_vars    = odd_vars
+        self._even_vars   = even_vars
+        self._single_sided = False
 
         # Підписуємося на зміни усіх 16 StringVar
         for var_dict in (odd_vars, even_vars):
@@ -138,6 +139,10 @@ class WarpPreviewCanvas(tk.Canvas):
     @staticmethod
     def _canvas_bg() -> str:
         return "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#ebebeb"
+
+    def set_single_sided(self, single: bool) -> None:
+        self._single_sided = single
+        self.update_preview()
 
     def _on_var_change(self, *_) -> None:
         self.update_preview()
@@ -221,13 +226,15 @@ class WarpPreviewCanvas(tk.Canvas):
         odd_corners  = self._read_corners(self._odd_vars)
         even_corners = self._read_corners(self._even_vars)
 
-        self._draw_page(left_cx,  cy, odd_corners,  self.COLOR_ODD,  orig_color)
+        back_color = "#606060" if self._single_sided else self.COLOR_EVEN
+
+        self._draw_page(left_cx,  cy, odd_corners,  self.COLOR_ODD, orig_color)
         self.create_text(left_cx,  cy + self.PAGE_H // 2 + 10,
                          text="FRONT", fill=self.COLOR_ODD, font=("Arial", 9, "bold"))
 
-        self._draw_page(right_cx, cy, even_corners, self.COLOR_EVEN, orig_color)
+        self._draw_page(right_cx, cy, even_corners, back_color, orig_color)
         self.create_text(right_cx, cy + self.PAGE_H // 2 + 10,
-                         text="BACK",  fill=self.COLOR_EVEN, font=("Arial", 9, "bold"))
+                         text="BACK",  fill=back_color, font=("Arial", 9, "bold"))
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +277,10 @@ class SettingsWindow(ctk.CTk):
         self._icc_use_var = ctk.BooleanVar(value=True)
         self._icc_vars:  dict[str, ctk.StringVar]     = {cs: ctk.StringVar() for cs, *_ in _ICC_SPACES}
         self._icc_menus: dict[str, ctk.CTkOptionMenu] = {}
+
+        # Режим друку
+        self._print_mode_var = ctk.StringVar(value="double")
+        self._back_entry_widgets: list = []
 
         # ---- Побудова UI ----
         self._build_ui()
@@ -383,22 +394,27 @@ class SettingsWindow(ctk.CTk):
         # Рядок 0: вибір файлів
         self._build_file_picker()
 
-        # Рядок 1: FRONT-кути | BACK-кути | Попередній перегляд
+        # Рядок 1: режим друку (заголовок) + FRONT-кути | BACK-кути | Попередній перегляд
         row1 = ctk.CTkFrame(self, fg_color="transparent")
         row1.pack(fill="x", padx=PAD, pady=(0, 6))
         row1.grid_columnconfigure(0, weight=1, uniform="row1")
         row1.grid_columnconfigure(1, weight=1, uniform="row1")
         row1.grid_columnconfigure(2, weight=1, uniform="row1")
+        row1.grid_rowconfigure(0, weight=0)
+        row1.grid_rowconfigure(1, weight=1)
+
+        self._build_print_mode_header(row1)
 
         self._build_corners_panel(
-            row1, col=0,
+            row1, col=0, grid_row=1,
             title="Деформація — Непарні (FRONT)",
             var_dict=self._odd_vars,
         )
-        self._build_corners_panel(
-            row1, col=1,
+        self._back_entry_widgets = self._build_corners_panel(
+            row1, col=1, grid_row=1,
             title="Деформація — Парні (BACK)",
             var_dict=self._even_vars,
+            add_hint=True,
         )
         self._build_preview_panel(row1, col=2)
 
@@ -442,6 +458,30 @@ class SettingsWindow(ctk.CTk):
         )
         self._file_combo.pack(side="left", padx=(4, 4), pady=10, fill="x", expand=True)
 
+    # ---- Рядок 1, заголовок режиму друку (colspan 2) ----
+
+    def _build_print_mode_header(self, parent) -> None:
+        frame = ctk.CTkFrame(parent, corner_radius=8)
+        frame.grid(row=0, column=0, columnspan=2, sticky="ew",
+                   padx=(0, 6), pady=(4, 2))
+
+        ctk.CTkLabel(
+            frame, text="Режим друку:",
+            font=ctk.CTkFont(size=12, weight="bold"), anchor="w",
+        ).pack(side="left", padx=(IPAD, 12), pady=8)
+
+        ctk.CTkRadioButton(
+            frame, text="1-ст друк",
+            variable=self._print_mode_var, value="single",
+        ).pack(side="left", padx=(0, 20), pady=8)
+
+        ctk.CTkRadioButton(
+            frame, text="2-ст друк",
+            variable=self._print_mode_var, value="double",
+        ).pack(side="left", pady=8)
+
+        self._print_mode_var.trace_add("write", self._on_print_mode_change)
+
     # ---- Рядок 1, колонки 0/1: кутові зміщення ----
 
     def _build_corners_panel(
@@ -450,9 +490,11 @@ class SettingsWindow(ctk.CTk):
         col: int,
         title: str,
         var_dict: dict[str, list[ctk.StringVar]],
-    ) -> None:
+        grid_row: int = 0,
+        add_hint: bool = False,
+    ) -> list:
         frame = ctk.CTkFrame(parent, corner_radius=8)
-        frame.grid(row=0, column=col, sticky="nsew",
+        frame.grid(row=grid_row, column=col, sticky="nsew",
                    padx=(0, 6) if col < 2 else 0, pady=4)
 
         _panel_label(frame, title)
@@ -476,22 +518,36 @@ class SettingsWindow(ctk.CTk):
             ).grid(row=0, column=c_idx, padx=(0, 4), pady=(0, 2))
 
         # Рядки кутів
+        entries = []
         for row_idx, (key, _, lbl_x, _) in enumerate(_CORNER_FIELDS, start=1):
             corner_name = lbl_x.rsplit(" ", 1)[0]
             ctk.CTkLabel(grid, text=corner_name, width=LABEL_W, anchor="w").grid(
                 row=row_idx, column=0, padx=(0, 4), pady=2)
-            ctk.CTkEntry(grid, textvariable=var_dict[key][0],
-                         width=ENTRY_W, justify="center").grid(
-                row=row_idx, column=1, padx=(0, 4), pady=2)
-            ctk.CTkEntry(grid, textvariable=var_dict[key][1],
-                         width=ENTRY_W, justify="center").grid(
-                row=row_idx, column=2, pady=2)
+            ex = ctk.CTkEntry(grid, textvariable=var_dict[key][0],
+                              width=ENTRY_W, justify="center")
+            ex.grid(row=row_idx, column=1, padx=(0, 4), pady=2)
+            ey = ctk.CTkEntry(grid, textvariable=var_dict[key][1],
+                              width=ENTRY_W, justify="center")
+            ey.grid(row=row_idx, column=2, pady=2)
+            entries.extend([ex, ey])
+
+        if add_hint:
+            self._back_hint_lbl = ctk.CTkLabel(
+                frame,
+                text="Всі сторінки обробляються зі значеннями FRONT",
+                font=ctk.CTkFont(size=10),
+                text_color=("gray50", "gray60"),
+                anchor="w",
+            )
+            # Пакується лише при активації режиму 1-ст друку
+
+        return entries
 
     # ---- Рядок 1, колонка 2: попередній перегляд ----
 
     def _build_preview_panel(self, parent, col: int) -> None:
         frame = ctk.CTkFrame(parent, corner_radius=8)
-        frame.grid(row=0, column=col, sticky="nsew", pady=4)
+        frame.grid(row=0, column=col, rowspan=2, sticky="nsew", pady=4)
 
         _panel_label(frame, "Попередній перегляд деформації")
 
@@ -650,6 +706,23 @@ class SettingsWindow(ctk.CTk):
             self._icc_vars[cs_key].set(_EMPTY_PROFILE)
 
     # -----------------------------------------------------------------------
+    # Режим друку
+    # -----------------------------------------------------------------------
+
+    def _on_print_mode_change(self, *_) -> None:
+        """Оновлює стан BACK-колонки залежно від обраного режиму друку."""
+        single = self._print_mode_var.get() == "single"
+        state = "disabled" if single else "normal"
+        for entry in self._back_entry_widgets:
+            entry.configure(state=state)
+        if single:
+            self._back_hint_lbl.pack(fill="x", padx=IPAD, pady=(0, IPAD))
+        else:
+            self._back_hint_lbl.pack_forget()
+        if hasattr(self, "_preview"):
+            self._preview.set_single_sided(single)
+
+    # -----------------------------------------------------------------------
     # Налаштування
     # -----------------------------------------------------------------------
 
@@ -681,6 +754,9 @@ class SettingsWindow(ctk.CTk):
         if self._icc_menus:
             self._on_icc_toggle()
 
+        self._print_mode_var.set(s.get("print_mode", "double"))
+        self._on_print_mode_change()
+
     def get_settings(self) -> dict:
         """Зчитує всі поля форми і повертає словник налаштувань."""
         icc_selections = {
@@ -698,6 +774,7 @@ class SettingsWindow(ctk.CTk):
             "output_suffix_gray": self._suffix_gray_var.get() or "_GRAY",
             "output_suffix_rgb":  self._suffix_rgb_var.get()  or "_RGB",
             "use_icc_profile":    self._icc_use_var.get(),
+            "print_mode":         self._print_mode_var.get(),
             **icc_selections,
         }
 
@@ -768,6 +845,7 @@ class SettingsWindow(ctk.CTk):
                     even_corners=settings["even_corners"],
                     output_suffix=suffix,
                     icc_path=icc_path,
+                    print_mode=settings["print_mode"],
                 )
                 self.after(0, lambda: self._on_done(out))
             except Exception as exc:

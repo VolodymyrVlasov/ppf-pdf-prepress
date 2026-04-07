@@ -47,6 +47,9 @@ DEFAULT_SETTINGS: dict = {
 
     # Остання папка, відкрита у файловому діалозі
     "last_folder": "",
+
+    # Режим друку: "single" (1-сторонній) або "double" (2-сторонній)
+    "print_mode": "double",
 }
 
 

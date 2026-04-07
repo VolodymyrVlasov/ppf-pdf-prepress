@@ -21,7 +21,7 @@
   "even_corners": {
     "tl": [
       0.0,
-      -2.0
+      2.0
     ],
     "tr": [
       0.0,
@@ -29,7 +29,7 @@
     ],
     "bl": [
       0.0,
-      -2.0
+      2.0
     ],
     "br": [
       0.0,
@@ -40,6 +40,7 @@
   "output_suffix_gray": "_GRAY",
   "output_suffix_rgb": "_RGB",
   "use_icc_profile": true,
+  "print_mode": "single",
   "icc_profile_cmyk": "",
   "icc_profile_rgb": "",
   "icc_profile_gray": ""

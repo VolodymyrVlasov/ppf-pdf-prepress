@@ -400,6 +400,7 @@ def process_pdf(
     even_corners: dict[str, tuple[float, float]],
     output_suffix: str,
     icc_path: Path | None = None,
+    print_mode: str = "double",
 ) -> str:
     """
     Повний цикл обробки PDF:
@@ -413,6 +414,7 @@ def process_pdf(
     :param output_suffix: Суфікс, що додається до імені файлу перед «.pdf».
     :param icc_path:      Шлях до .icc-файлу для вбудовування як OutputIntent.
                           None → профіль не вбудовується.
+    :param print_mode:    «double» — парні/непарні; «single» — всі сторінки через FRONT.
     :return:              Шлях до вихідного PDF-файлу.
     """
     pdf_path = Path(pdf_path)
@@ -433,18 +435,27 @@ def process_pdf(
     print(f"[processor] Сторінок растеризовано: {len(pages)}")
 
     # --- Геометрична деформація (за потреби) ---
+    if use_warp and print_mode == "single":
+        print("[processor] Режим: 1-сторонній друк — деформація FRONT для всіх сторінок")
+
     processed = []
     for i, page_img in enumerate(pages):
         page_num = i + 1                    # 1-based
         is_odd   = (page_num % 2 == 1)     # непарна (FRONT) = True
 
         if use_warp:
-            corners = odd_corners if is_odd else even_corners
+            if print_mode == "single":
+                corners = odd_corners
+            else:
+                corners = odd_corners if is_odd else even_corners
             page_img = apply_warp(page_img, corners, dpi)
-            print(
-                f"[processor] Стор. {page_num}: warp "
-                f"({'FRONT/непарна' if is_odd else 'BACK/парна'})"
-            )
+            if print_mode == "single":
+                print(f"[processor] Стор. {page_num}: warp FRONT (1-ст друк)")
+            else:
+                print(
+                    f"[processor] Стор. {page_num}: warp "
+                    f"({'FRONT/непарна' if is_odd else 'BACK/парна'})"
+                )
 
         processed.append(page_img)
 
