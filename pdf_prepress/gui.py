@@ -5,9 +5,11 @@ gui.py — Вікно налаштувань PDF Pre-Press Processor.
   Рядок 0 — вибір файлів (повна ширина)
   Рядок 1 — FRONT-кути | BACK-кути | Попередній перегляд
   Рядок 2 — DPI+суфікси | ICC-профілі | Кнопки запуску
+  Панель прогресу — спінер + лог + лічильник сторінок + кнопка зупинки
   Рядок 3 — статус-рядок (повна ширина)
 """
 
+import math
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -24,13 +26,12 @@ from processor import process_pdf, get_profiles, ICC_DIR
 # ---------------------------------------------------------------------------
 
 WINDOW_TITLE = "PDF Pre-Press — Налаштування"
-WINDOW_SIZE  = "1100x700"
-PAD          = 16     # зовнішні відступи
-IPAD         = 10     # відступи всередині панелей
-ENTRY_W      = 70     # ширина поля вводу кута
-LABEL_W      = 90     # ширина підпису кута
+WINDOW_SIZE  = "1100x860"
+PAD          = 16
+IPAD         = 10
+ENTRY_W      = 70
+LABEL_W      = 90
 
-# Кнопки запуску: (мітка, mode-ключ, колір) — 3 рядки × 2 стовпці
 _BUTTONS = [
     ("CMYK",                   "cmyk",             "#1565C0"),
     ("CMYK + деформація",      "cmyk_warp",        "#6A1B9A"),
@@ -40,7 +41,6 @@ _BUTTONS = [
     ("RGB + деформація",       "rgb_warp",         "#2E7D32"),
 ]
 
-# Кутові поля: (ключ у corners-dict, ряд, мітка X, мітка Y)
 _CORNER_FIELDS = [
     ("tl", 0, "Верх-лів X",  "Верх-лів Y"),
     ("tr", 1, "Верх-прав X", "Верх-прав Y"),
@@ -52,12 +52,32 @@ DPI_OPTIONS    = ["150", "300", "600"]
 _EMPTY_PROFILE = "— не знайдено —"
 _NO_FILES      = "— файли не обрано —"
 
-# ICC колірні простори: (ключ папки, мітка в UI, ключ налаштування)
 _ICC_SPACES: list[tuple[str, str, str]] = [
     ("cmyk", "CMYK",      "icc_profile_cmyk"),
     ("rgb",  "RGB",       "icc_profile_rgb"),
     ("gray", "Grayscale", "icc_profile_gray"),
 ]
+
+# Інтерполяція деформації: (назва відображення, ключ налаштування)
+_INTERP_OPTIONS: list[tuple[str, str]] = [
+    ("Lanczos (найкраща якість)",  "INTER_LANCZOS4"),
+    ("Cubic (висока якість)",       "INTER_CUBIC"),
+    ("Linear (стандартна)",         "INTER_LINEAR"),
+    ("Nearest (без згладжування)", "INTER_NEAREST"),
+]
+_INTERP_DISPLAY_TO_KEY = {d: k for d, k in _INTERP_OPTIONS}
+_INTERP_KEY_TO_DISPLAY = {k: d for d, k in _INTERP_OPTIONS}
+_INTERP_DISPLAY_NAMES  = [d for d, _ in _INTERP_OPTIONS]
+
+# Стиснення проміжних файлів: (назва відображення, ключ налаштування)
+_COMPRESSION_OPTIONS: list[tuple[str, str]] = [
+    ("TIFF LZW (без втрат)",      "tiff_lzw"),
+    ("TIFF Deflate (без втрат)",  "tiff_deflate"),
+    ("Без стиснення (найшвидше)", "none"),
+]
+_COMPRESSION_DISPLAY_TO_KEY = {d: k for d, k in _COMPRESSION_OPTIONS}
+_COMPRESSION_KEY_TO_DISPLAY = {k: d for d, k in _COMPRESSION_OPTIONS}
+_COMPRESSION_DISPLAY_NAMES  = [d for d, _ in _COMPRESSION_OPTIONS]
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +85,6 @@ _ICC_SPACES: list[tuple[str, str, str]] = [
 # ---------------------------------------------------------------------------
 
 def _parse_float(val: str, default: float = 0.0) -> float:
-    """Безпечне перетворення рядка на float."""
     try:
         return float(val.replace(",", "."))
     except (ValueError, AttributeError):
@@ -73,11 +92,83 @@ def _parse_float(val: str, default: float = 0.0) -> float:
 
 
 def _panel_label(parent, text: str) -> ctk.CTkLabel:
-    """Жирний заголовок панелі (компактний відступ)."""
     lbl = ctk.CTkLabel(parent, text=text,
                         font=ctk.CTkFont(size=12, weight="bold"), anchor="w")
     lbl.pack(fill="x", padx=IPAD, pady=(IPAD, 4))
     return lbl
+
+
+# ---------------------------------------------------------------------------
+# Анімований спінер
+# ---------------------------------------------------------------------------
+
+class SpinnerCanvas(tk.Canvas):
+    """
+    Анімований спінер — 8 точок у колі із змінною яскравістю.
+    Оновлюється кожні 80 мс через .after().
+    """
+
+    SEGMENTS = 8
+
+    def __init__(self, parent, size: int = 28, **kwargs) -> None:
+        bg = self._get_bg()
+        super().__init__(
+            parent,
+            width=size,
+            height=size,
+            bg=bg,
+            highlightthickness=0,
+            **kwargs,
+        )
+        self._size     = size
+        self._angle    = 0
+        self._running  = False
+        self._after_id = None
+
+    @staticmethod
+    def _get_bg() -> str:
+        try:
+            return "#2b2b2b" if ctk.get_appearance_mode() == "Dark" else "#ebebeb"
+        except Exception:
+            return "#ebebeb"
+
+    def start(self) -> None:
+        if self._running:
+            return
+        self._running = True
+        self._animate()
+
+    def stop(self) -> None:
+        self._running = False
+        if self._after_id is not None:
+            try:
+                self.after_cancel(self._after_id)
+            except Exception:
+                pass
+            self._after_id = None
+        self.delete("all")
+
+    def _animate(self) -> None:
+        if not self._running:
+            return
+        self.delete("all")
+
+        cx = cy   = self._size / 2
+        r_orbit   = self._size / 2 - 4
+        r_dot     = max(2, self._size // 10)
+
+        for i in range(self.SEGMENTS):
+            dist       = (self._angle - i) % self.SEGMENTS
+            brightness = int(55 + 200 * dist / max(self.SEGMENTS - 1, 1))
+            color      = "#{0:02x}{0:02x}{0:02x}".format(brightness)
+            angle_rad  = math.pi * 2 * i / self.SEGMENTS - math.pi / 2
+            x = cx + r_orbit * math.cos(angle_rad)
+            y = cy + r_orbit * math.sin(angle_rad)
+            self.create_oval(x - r_dot, y - r_dot, x + r_dot, y + r_dot,
+                             fill=color, outline="")
+
+        self._angle    = (self._angle + 1) % self.SEGMENTS
+        self._after_id = self.after(80, self._animate)
 
 
 # ---------------------------------------------------------------------------
@@ -95,16 +186,12 @@ class WarpPreviewCanvas(tk.Canvas):
 
     CANVAS_W = 300
     CANVAS_H = 200
-
-    # Розміри прямокутника сторінки (пропорції A4: 1 : √2)
-    PAGE_W = 100
-    PAGE_H = 141
-
-    # Масштаб: 1 мм = 1 піксель
+    PAGE_W   = 100
+    PAGE_H   = 141
     MM_TO_PX: float = 1.0
 
-    COLOR_ODD  = "#4A8FD4"   # синій — FRONT (непарні)
-    COLOR_EVEN = "#E07B20"   # помаранчевий — BACK (парні)
+    COLOR_ODD  = "#4A8FD4"
+    COLOR_EVEN = "#E07B20"
 
     def __init__(
         self,
@@ -124,11 +211,10 @@ class WarpPreviewCanvas(tk.Canvas):
             **kwargs,
         )
 
-        self._odd_vars    = odd_vars
-        self._even_vars   = even_vars
+        self._odd_vars     = odd_vars
+        self._even_vars    = even_vars
         self._single_sided = False
 
-        # Підписуємося на зміни усіх 16 StringVar
         for var_dict in (odd_vars, even_vars):
             for key, *_ in _CORNER_FIELDS:
                 for sv in var_dict[key]:
@@ -203,7 +289,6 @@ class WarpPreviewCanvas(tk.Canvas):
                 self.create_oval(px - r, py - r, px + r, py + r, fill=color, outline="")
 
     def update_preview(self) -> None:
-        """Повністю перемальовує полотно з поточними значеннями кутів."""
         self.delete("all")
 
         bg = self._canvas_bg()
@@ -261,15 +346,17 @@ class SettingsWindow(ctk.CTk):
         # ---- Список файлів ----
         self._file_paths: list[str] = []
         self._file_combo_var = ctk.StringVar(value=_NO_FILES)
-        self._file_combo: ctk.CTkComboBox  # призначається у _build_file_picker
+        self._file_combo: ctk.CTkComboBox
 
         # ---- Змінні форми ----
         self._dpi_var         = ctk.StringVar(value="300")
         self._suffix_cmyk_var = ctk.StringVar(value="_CMYK")
         self._suffix_gray_var = ctk.StringVar(value="_GRAY")
         self._suffix_rgb_var  = ctk.StringVar(value="_RGB")
+        self._interp_var      = ctk.StringVar(value=_INTERP_DISPLAY_NAMES[0])
+        self._compression_var = ctk.StringVar(value=_COMPRESSION_DISPLAY_NAMES[0])
 
-        # Кутові зміщення: {"tl": [StringVar_x, StringVar_y], ...}
+        # Кутові зміщення
         self._odd_vars:  dict[str, list[ctk.StringVar]] = self._make_corner_vars()
         self._even_vars: dict[str, list[ctk.StringVar]] = self._make_corner_vars()
 
@@ -279,8 +366,11 @@ class SettingsWindow(ctk.CTk):
         self._icc_menus: dict[str, ctk.CTkOptionMenu] = {}
 
         # Режим друку
-        self._print_mode_var = ctk.StringVar(value="double")
+        self._print_mode_var       = ctk.StringVar(value="double")
         self._back_entry_widgets: list = []
+
+        # Стан обробки
+        self._stop_event: threading.Event | None = None
 
         # ---- Побудова UI ----
         self._build_ui()
@@ -306,21 +396,18 @@ class SettingsWindow(ctk.CTk):
     # -----------------------------------------------------------------------
 
     def _current_pdf_path(self) -> str | None:
-        """Повертає повний шлях до поточного файлу зі списку, або None."""
         if not self._file_paths:
             return None
         val = self._file_combo_var.get()
         if val == _NO_FILES:
             return None
         try:
-            # Формат відображення: "N. filename.pdf"
             idx = int(val.split(".")[0]) - 1
             return self._file_paths[idx] if 0 <= idx < len(self._file_paths) else None
         except (ValueError, IndexError):
             return None
 
     def _refresh_file_combo(self, select_idx: int = 0) -> None:
-        """Оновлює список dropdown і виділяє потрібний елемент."""
         if not self._file_paths:
             self._file_combo.configure(values=[_NO_FILES])
             self._file_combo_var.set(_NO_FILES)
@@ -331,13 +418,11 @@ class SettingsWindow(ctk.CTk):
         self._file_combo_var.set(display[idx])
 
     def _add_file(self, path: str) -> None:
-        """Додає файл до списку (якщо ще немає) і виділяє його."""
         if path not in self._file_paths:
             self._file_paths.append(path)
         self._refresh_file_combo(self._file_paths.index(path))
 
     def _on_add_files(self) -> None:
-        """Відкриває діалог вибору PDF-файлів та додає їх до списку."""
         s = load_settings()
         init_dir = s.get("last_folder", "")
         if not init_dir or not Path(init_dir).exists():
@@ -356,14 +441,12 @@ class SettingsWindow(ctk.CTk):
             if path not in self._file_paths:
                 self._file_paths.append(path)
 
-        # Зберігаємо останню папку
         s["last_folder"] = str(Path(paths[-1]).parent)
         save_settings(s)
 
         self._refresh_file_combo(len(self._file_paths) - 1)
 
     def _on_remove_file(self) -> None:
-        """Видаляє поточний файл зі списку."""
         if not self._file_paths:
             return
         val = self._file_combo_var.get()
@@ -380,9 +463,7 @@ class SettingsWindow(ctk.CTk):
     # -----------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        """Розміщує всі панелі у вікні."""
-
-        # Статус-рядок — пакуємо першим з side="bottom", щоб він завжди знизу
+        # Статус-рядок — пакуємо першим з side="bottom"
         self._status_lbl = ctk.CTkLabel(
             self, text="", anchor="w",
             font=ctk.CTkFont(size=11),
@@ -391,10 +472,13 @@ class SettingsWindow(ctk.CTk):
         )
         self._status_lbl.pack(fill="x", side="bottom", ipady=5)
 
+        # Панель прогресу (над статус-рядком)
+        self._build_progress_panel()
+
         # Рядок 0: вибір файлів
         self._build_file_picker()
 
-        # Рядок 1: режим друку (заголовок) + FRONT-кути | BACK-кути | Попередній перегляд
+        # Рядок 1
         row1 = ctk.CTkFrame(self, fg_color="transparent")
         row1.pack(fill="x", padx=PAD, pady=(0, 6))
         row1.grid_columnconfigure(0, weight=1, uniform="row1")
@@ -418,7 +502,7 @@ class SettingsWindow(ctk.CTk):
         )
         self._build_preview_panel(row1, col=2)
 
-        # Рядок 2: DPI+суфікси | ICC-профілі | Кнопки
+        # Рядок 2
         row2 = ctk.CTkFrame(self, fg_color="transparent")
         row2.pack(fill="x", padx=PAD, pady=(0, 8))
         row2.grid_columnconfigure(0, weight=1, uniform="row2")
@@ -429,6 +513,58 @@ class SettingsWindow(ctk.CTk):
         self._build_icc_panel(row2, col=1)
         self._build_buttons_panel(row2, col=2)
 
+    # ---- Панель прогресу ----
+
+    def _build_progress_panel(self) -> None:
+        self._progress_frame = ctk.CTkFrame(self, corner_radius=8)
+        self._progress_frame.pack(fill="x", padx=PAD, pady=(0, 4), side="bottom")
+
+        # Заголовний рядок
+        header = ctk.CTkFrame(self._progress_frame, fg_color="transparent")
+        header.pack(fill="x", padx=IPAD, pady=(6, 2))
+        header.grid_columnconfigure(1, weight=1)
+
+        # Спінер
+        self._spinner = SpinnerCanvas(header, size=24)
+        self._spinner.grid(row=0, column=0, padx=(0, 8))
+
+        # Статус
+        self._progress_status_lbl = ctk.CTkLabel(
+            header, text="Очікування...",
+            anchor="w", font=ctk.CTkFont(size=11),
+        )
+        self._progress_status_lbl.grid(row=0, column=1, sticky="ew")
+
+        # Лічильник сторінок
+        self._page_counter_lbl = ctk.CTkLabel(
+            header, text="", anchor="e", width=140,
+            font=ctk.CTkFont(size=11),
+        )
+        self._page_counter_lbl.grid(row=0, column=2, padx=(8, 8))
+
+        # Кнопка зупинки (прихована за замовчуванням)
+        self._stop_btn = ctk.CTkButton(
+            header,
+            text="⏹ Зупинити",
+            width=110,
+            fg_color="#c0392b",
+            hover_color="#922b21",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            command=self._on_cancel,
+        )
+        # Не показуємо одразу
+        self._stop_btn_visible = False
+
+        # Лог
+        self._log_textbox = ctk.CTkTextbox(
+            self._progress_frame,
+            height=110,
+            font=ctk.CTkFont(family="Courier New", size=10),
+            state="disabled",
+            wrap="word",
+        )
+        self._log_textbox.pack(fill="x", padx=IPAD, pady=(2, 6))
+
     # ---- Рядок 0: вибір файлів ----
 
     def _build_file_picker(self) -> None:
@@ -438,7 +574,6 @@ class SettingsWindow(ctk.CTk):
         ctk.CTkLabel(frame, text="Файли:", width=55, anchor="w").pack(
             side="left", padx=(IPAD, 4), pady=10)
 
-        # Кнопки праворуч (пакуємо до combobox, щоб він розтягнувся на решту)
         ctk.CTkButton(
             frame, text="✕ Видалити", width=100,
             fg_color="gray40", hover_color="gray30",
@@ -450,7 +585,6 @@ class SettingsWindow(ctk.CTk):
             command=self._on_add_files,
         ).pack(side="right", padx=4, pady=10)
 
-        # Combobox розтягується на весь вільний простір
         self._file_combo = ctk.CTkComboBox(
             frame,
             variable=self._file_combo_var,
@@ -458,7 +592,7 @@ class SettingsWindow(ctk.CTk):
         )
         self._file_combo.pack(side="left", padx=(4, 4), pady=10, fill="x", expand=True)
 
-    # ---- Рядок 1, заголовок режиму друку (colspan 2) ----
+    # ---- Рядок 1, заголовок режиму друку ----
 
     def _build_print_mode_header(self, parent) -> None:
         frame = ctk.CTkFrame(parent, corner_radius=8)
@@ -509,7 +643,6 @@ class SettingsWindow(ctk.CTk):
         grid = ctk.CTkFrame(frame, fg_color="transparent")
         grid.pack(fill="x", padx=IPAD, pady=(0, IPAD))
 
-        # Заголовки стовпців
         for c_idx, txt in enumerate(("", "X (мм)", "Y (мм)")):
             ctk.CTkLabel(
                 grid, text=txt,
@@ -517,7 +650,6 @@ class SettingsWindow(ctk.CTk):
                 anchor="center", font=ctk.CTkFont(size=10, weight="bold"),
             ).grid(row=0, column=c_idx, padx=(0, 4), pady=(0, 2))
 
-        # Рядки кутів
         entries = []
         for row_idx, (key, _, lbl_x, _) in enumerate(_CORNER_FIELDS, start=1):
             corner_name = lbl_x.rsplit(" ", 1)[0]
@@ -539,7 +671,6 @@ class SettingsWindow(ctk.CTk):
                 text_color=("gray50", "gray60"),
                 anchor="w",
             )
-            # Пакується лише при активації режиму 1-ст друку
 
         return entries
 
@@ -574,7 +705,7 @@ class SettingsWindow(ctk.CTk):
                      font=ctk.CTkFont(size=10),
                      text_color=WarpPreviewCanvas.COLOR_EVEN).pack(side="left")
 
-    # ---- Рядок 2, колонка 0: DPI + суфікси ----
+    # ---- Рядок 2, колонка 0: DPI + інтерполяція + стиснення + суфікси ----
 
     def _build_dpi_suffix_panel(self, parent, col: int) -> None:
         frame = ctk.CTkFrame(parent, corner_radius=8)
@@ -582,11 +713,42 @@ class SettingsWindow(ctk.CTk):
 
         _panel_label(frame, "Параметри растрування")
 
+        # DPI
         dpi_row = ctk.CTkFrame(frame, fg_color="transparent")
-        dpi_row.pack(fill="x", padx=IPAD, pady=(0, 8))
+        dpi_row.pack(fill="x", padx=IPAD, pady=(0, 4))
         ctk.CTkLabel(dpi_row, text="Роздільна здатність (DPI)", anchor="w").pack(side="left")
         ctk.CTkOptionMenu(dpi_row, variable=self._dpi_var,
                           values=DPI_OPTIONS, width=80).pack(side="right")
+
+        # Інтерполяція
+        interp_row = ctk.CTkFrame(frame, fg_color="transparent")
+        interp_row.pack(fill="x", padx=IPAD, pady=(0, 2))
+        ctk.CTkLabel(interp_row, text="Інтерполяція деформації", anchor="w").pack(side="left")
+        ctk.CTkOptionMenu(
+            interp_row,
+            variable=self._interp_var,
+            values=_INTERP_DISPLAY_NAMES,
+            width=200,
+        ).pack(side="right")
+
+        ctk.CTkLabel(
+            frame,
+            text="Впливає лише на режими з деформацією. Lanczos рекомендовано для тексту.",
+            font=ctk.CTkFont(size=10),
+            text_color=("gray50", "gray55"),
+            anchor="w",
+        ).pack(fill="x", padx=IPAD, pady=(0, 6))
+
+        # Стиснення
+        comp_row = ctk.CTkFrame(frame, fg_color="transparent")
+        comp_row.pack(fill="x", padx=IPAD, pady=(0, 8))
+        ctk.CTkLabel(comp_row, text="Стиснення проміжних файлів", anchor="w").pack(side="left")
+        ctk.CTkOptionMenu(
+            comp_row,
+            variable=self._compression_var,
+            values=_COMPRESSION_DISPLAY_NAMES,
+            width=200,
+        ).pack(side="right")
 
         _panel_label(frame, "Суфікси вихідних файлів")
 
@@ -664,7 +826,6 @@ class SettingsWindow(ctk.CTk):
         btn_grid.grid_columnconfigure(0, weight=1)
         btn_grid.grid_columnconfigure(1, weight=1)
 
-        # 3 рядки × 2 стовпці: [Base] [Base + деформація]
         for idx, (label, mode, color) in enumerate(_BUTTONS):
             r, c = divmod(idx, 2)
             ctk.CTkButton(
@@ -684,14 +845,12 @@ class SettingsWindow(ctk.CTk):
     # -----------------------------------------------------------------------
 
     def _on_icc_toggle(self) -> None:
-        """Вмикає/вимикає dropdown залежно від стану checkbox."""
         enabled = self._icc_use_var.get()
         for cs_key, menu in self._icc_menus.items():
             profiles = get_profiles(cs_key)
             menu.configure(state="normal" if (enabled and profiles) else "disabled")
 
     def _refresh_icc_dropdown(self, cs_key: str) -> None:
-        """Пересканує підпапку профілів і оновлює відповідний dropdown."""
         menu = self._icc_menus.get(cs_key)
         if menu is None:
             return
@@ -710,7 +869,6 @@ class SettingsWindow(ctk.CTk):
     # -----------------------------------------------------------------------
 
     def _on_print_mode_change(self, *_) -> None:
-        """Оновлює стан BACK-колонки залежно від обраного режиму друку."""
         single = self._print_mode_var.get() == "single"
         state = "disabled" if single else "normal"
         for entry in self._back_entry_widgets:
@@ -727,7 +885,6 @@ class SettingsWindow(ctk.CTk):
     # -----------------------------------------------------------------------
 
     def load_settings(self) -> None:
-        """Зчитує settings.json і заповнює всі поля форми."""
         s = load_settings()
 
         dpi_str = str(s.get("dpi", 300))
@@ -736,6 +893,12 @@ class SettingsWindow(ctk.CTk):
         self._suffix_cmyk_var.set(s.get("output_suffix_cmyk", "_CMYK"))
         self._suffix_gray_var.set(s.get("output_suffix_gray", "_GRAY"))
         self._suffix_rgb_var.set(s.get("output_suffix_rgb",  "_RGB"))
+
+        interp_key = s.get("interpolation", "INTER_LANCZOS4")
+        self._interp_var.set(_INTERP_KEY_TO_DISPLAY.get(interp_key, _INTERP_DISPLAY_NAMES[0]))
+
+        comp_key = s.get("compression", "tiff_lzw")
+        self._compression_var.set(_COMPRESSION_KEY_TO_DISPLAY.get(comp_key, _COMPRESSION_DISPLAY_NAMES[0]))
 
         self._fill_corner_vars(self._odd_vars,  s.get("odd_corners",  DEFAULT_SETTINGS["odd_corners"]))
         self._fill_corner_vars(self._even_vars, s.get("even_corners", DEFAULT_SETTINGS["even_corners"]))
@@ -758,7 +921,6 @@ class SettingsWindow(ctk.CTk):
         self._on_print_mode_change()
 
     def get_settings(self) -> dict:
-        """Зчитує всі поля форми і повертає словник налаштувань."""
         icc_selections = {
             settings_key: (
                 self._icc_vars[cs_key].get()
@@ -775,8 +937,74 @@ class SettingsWindow(ctk.CTk):
             "output_suffix_rgb":  self._suffix_rgb_var.get()  or "_RGB",
             "use_icc_profile":    self._icc_use_var.get(),
             "print_mode":         self._print_mode_var.get(),
+            "interpolation":      _INTERP_DISPLAY_TO_KEY.get(
+                                      self._interp_var.get(), "INTER_LANCZOS4"),
+            "compression":        _COMPRESSION_DISPLAY_TO_KEY.get(
+                                      self._compression_var.get(), "tiff_lzw"),
             **icc_selections,
         }
+
+    # -----------------------------------------------------------------------
+    # Прогрес-панель: керування
+    # -----------------------------------------------------------------------
+
+    def _start_progress(self, status_text: str) -> None:
+        """Вмикає спінер, очищає лог, показує кнопку зупинки."""
+        self._progress_status_lbl.configure(
+            text=status_text,
+            text_color=("gray20", "gray80"),
+        )
+        self._page_counter_lbl.configure(text="Сторінка 0 / ?")
+        self._log_textbox.configure(state="normal")
+        self._log_textbox.delete("1.0", "end")
+        self._log_textbox.configure(state="disabled")
+
+        if not self._stop_btn_visible:
+            self._stop_btn.grid(row=0, column=3, padx=(8, 0))
+            self._stop_btn_visible = True
+        self._stop_btn.configure(state="normal")
+        self._spinner.start()
+
+    def _stop_progress(self) -> None:
+        """Зупиняє спінер та приховує кнопку зупинки."""
+        self._spinner.stop()
+        if self._stop_btn_visible:
+            self._stop_btn.grid_remove()
+            self._stop_btn_visible = False
+
+    def _append_log(self, text: str) -> None:
+        """Додає рядок до лог-текстбоксу (завжди з основного потоку)."""
+        self._log_textbox.configure(state="normal")
+        self._log_textbox.insert("end", text + "\n")
+        self._log_textbox.configure(state="disabled")
+        self._log_textbox.see("end")
+
+    def _make_log_callback(self) -> callable:
+        """Повертає потокобезпечний log_callback для processor.py."""
+        def cb(text: str) -> None:
+            self.after(0, lambda t=text: self._append_log(t))
+        return cb
+
+    def _make_progress_callback(self) -> callable:
+        """Повертає progress_callback для оновлення лічильника сторінок."""
+        def cb(current: int, total: int) -> None:
+            self.after(
+                0,
+                lambda c=current, t=total: self._page_counter_lbl.configure(
+                    text=f"Сторінка {c} / {t}"
+                ),
+            )
+        return cb
+
+    def _on_cancel(self) -> None:
+        """Встановлює сигнал зупинки та деактивує кнопку."""
+        if self._stop_event is not None:
+            self._stop_event.set()
+        self._stop_btn.configure(state="disabled", text="Зупиняємо...")
+
+    # -----------------------------------------------------------------------
+    # Запуск обробки
+    # -----------------------------------------------------------------------
 
     def on_run(self, mode: str) -> None:
         """
@@ -833,7 +1061,14 @@ class SettingsWindow(ctk.CTk):
                 else:
                     print(f"[gui] УВАГА: профіль не знайдено: {candidate}")
 
-        self._set_status(f"Обробка: {Path(pdf_path).name}  [{mode}]…")
+        status_text = f"Обробка: {Path(pdf_path).name}  [{mode}]"
+        self._set_status(f"{status_text}…")
+        self._stop_event = threading.Event()
+        self._start_progress(status_text)
+
+        log_cb      = self._make_log_callback()
+        progress_cb = self._make_progress_callback()
+        stop_evt    = self._stop_event
 
         def _worker() -> None:
             try:
@@ -846,10 +1081,18 @@ class SettingsWindow(ctk.CTk):
                     output_suffix=suffix,
                     icc_path=icc_path,
                     print_mode=settings["print_mode"],
+                    interpolation=settings.get("interpolation", "INTER_LANCZOS4"),
+                    compression=settings.get("compression", "tiff_lzw"),
+                    log_callback=log_cb,
+                    progress_callback=progress_cb,
+                    stop_event=stop_evt,
                 )
-                self.after(0, lambda: self._on_done(out))
+                if out is None:
+                    self.after(0, self._on_cancelled)
+                else:
+                    self.after(0, lambda o=out: self._on_done(o))
             except Exception as exc:
-                self.after(0, lambda: self._on_error(exc))
+                self.after(0, lambda e=exc: self._on_error(e))
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -883,14 +1126,32 @@ class SettingsWindow(ctk.CTk):
         return "#{:02x}{:02x}{:02x}".format(int(r * factor), int(g * factor), int(b * factor))
 
     def _set_status(self, text: str) -> None:
-        """Оновлює текст статус-рядка (завжди викликається з основного потоку)."""
         self._status_lbl.configure(text=f"  {text}")
 
     def _on_done(self, output_path: str) -> None:
+        self._stop_progress()
+        self._progress_status_lbl.configure(
+            text=f"Готово: {Path(output_path).name}",
+            text_color=("gray20", "gray80"),
+        )
         self._set_status(f"Готово: {output_path}")
         messagebox.showinfo("Успіх", f"Файл збережено:\n{output_path}", parent=self)
 
+    def _on_cancelled(self) -> None:
+        self._stop_progress()
+        self._progress_status_lbl.configure(
+            text="⛔ Зупинено",
+            text_color=("#c0392b", "#ff6b6b"),
+        )
+        self._page_counter_lbl.configure(text="")
+        self._set_status("⛔ Конвертацію зупинено користувачем")
+
     def _on_error(self, exc: Exception) -> None:
+        self._stop_progress()
+        self._progress_status_lbl.configure(
+            text=f"Помилка: {exc}",
+            text_color=("#c0392b", "#ff6b6b"),
+        )
         self._set_status(f"Помилка: {exc}")
         messagebox.showerror("Помилка обробки", str(exc), parent=self)
 

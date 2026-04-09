@@ -50,6 +50,12 @@ DEFAULT_SETTINGS: dict = {
 
     # Режим друку: "single" (1-сторонній) або "double" (2-сторонній)
     "print_mode": "double",
+
+    # Інтерполяція при деформації: ім'я константи cv2.INTER_*
+    "interpolation": "INTER_LANCZOS4",
+
+    # Стиснення проміжних TIFF-файлів: "tiff_lzw", "tiff_deflate", "none"
+    "compression": "tiff_lzw",
 }
 
 

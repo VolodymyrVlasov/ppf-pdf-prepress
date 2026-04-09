@@ -7,7 +7,7 @@
     ],
     "tr": [
       0.0,
-      -2.0
+      -0.6
     ],
     "bl": [
       0.0,
@@ -15,25 +15,25 @@
     ],
     "br": [
       0.0,
-      -2.0
+      -1.0
     ]
   },
   "even_corners": {
     "tl": [
       0.0,
-      2.0
+      1.5
     ],
     "tr": [
       0.0,
-      0.0
+      -0.6
     ],
     "bl": [
       0.0,
-      2.0
+      1.2
     ],
     "br": [
       0.0,
-      0.0
+      -1.0
     ]
   },
   "output_suffix_cmyk": "_CMYK",
@@ -41,7 +41,9 @@
   "output_suffix_rgb": "_RGB",
   "use_icc_profile": true,
   "print_mode": "single",
-  "icc_profile_cmyk": "",
-  "icc_profile_rgb": "",
+  "interpolation": "INTER_CUBIC",
+  "compression": "tiff_lzw",
+  "icc_profile_cmyk": "CoatedFOGRA39.icc",
+  "icc_profile_rgb": "AdobeRGB1998.icc",
   "icc_profile_gray": ""
 }
