@@ -45,8 +45,13 @@ DEFAULT_SETTINGS: dict = {
     "icc_profile_rgb":  "",
     "icc_profile_gray": "",
 
-    # Остання папка, відкрита у файловому діалозі
-    "last_folder": "",
+    # Останні папки файлового діалогу та виводу
+    "last_folder":        "",
+    "last_open_folder":   "",
+    "last_output_folder": "",
+
+    # Геометрія вікна (зберігається при закритті)
+    "window_geometry": "1100x700+100+100",
 
     # Режим друку: "single" (1-сторонній) або "double" (2-сторонній)
     "print_mode": "double",
@@ -56,6 +61,9 @@ DEFAULT_SETTINGS: dict = {
 
     # Стиснення проміжних TIFF-файлів: "tiff_lzw", "tiff_deflate", "none"
     "compression": "tiff_lzw",
+
+    # Автоматично відкривати оброблений файл після завершення
+    "auto_open_file": True,
 }
 
 

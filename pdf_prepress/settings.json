@@ -40,10 +40,15 @@
   "output_suffix_gray": "_GRAY",
   "output_suffix_rgb": "_RGB",
   "use_icc_profile": true,
+  "icc_profile_cmyk": "CoatedFOGRA39.icc",
+  "icc_profile_rgb": "AdobeRGB1998.icc",
+  "icc_profile_gray": "",
+  "last_folder": "",
+  "last_open_folder": "",
+  "last_output_folder": "",
+  "window_geometry": "1800x1062+-7+0",
   "print_mode": "single",
   "interpolation": "INTER_CUBIC",
   "compression": "tiff_lzw",
-  "icc_profile_cmyk": "CoatedFOGRA39.icc",
-  "icc_profile_rgb": "AdobeRGB1998.icc",
-  "icc_profile_gray": ""
+  "auto_open_file": true
 }
