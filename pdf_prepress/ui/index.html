@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF Pre-Press</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/warp-preview.css">
+</head>
+
+<body>
+
+  <div class="app-wrapper">
+
+    <!-- ── File bar ──────────────────────────────────────────── -->
+    <div class="file-bar card">
+      <span style="font-size:var(--font-size-base);color:var(--color-text-primary);white-space:nowrap;">Файли:</span>
+      <div class="file-combo-wrap">
+        <select id="file-select" class="select-field">
+          <option value="">— файли не обрано —</option>
+        </select>
+      </div>
+      <button id="btn-add-files" class="btn btn-sm btn-accent">⊕ Додати</button>
+      <button id="btn-open-folder" class="btn btn-sm" title="Відкрити папку збереженого файлу">📁</button>
+    </div>
+
+    <!-- ── Print-mode bar ────────────────────────────────────── -->
+    <div class="print-mode-bar card">
+      <span class="card-title" style="font-size:var(--font-size-title);">Режим друку:</span>
+      <label class="radio-row">
+        <input type="radio" name="print-mode" value="single" id="radio-single">
+        1-ст друк
+      </label>
+      <label class="radio-row">
+        <input type="radio" name="print-mode" value="double" id="radio-double" checked>
+        2-ст друк
+      </label>
+    </div>
+
+    <!-- ── Main area ─────────────────────────────────────────── -->
+    <div class="main-area">
+      <div class="col-deform-cnt">
+        <!-- FRONT deformation card -->
+        <div class="col-front">
+          <div class="card deform-card" id="card-front">
+            <div class="card-header">
+              <div class="card-title">Деформація (FRONT)</div>
+              <div class="card-subtitle">Зміщення кутів у мм&nbsp;&nbsp;(+ назовні, − всередину)</div>
+            </div>
+            <div class="row_sp_btw size_100">
+              <div class="col">
+                <!-- TL -->
+                <div class="deform-corner">
+                  <!-- <span class="corner-label">Верх-ліво</span> -->
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="odd-tl-x" type="text" value="0.0">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="odd-tl-y" type="text" value="0.0">
+                </div>
+
+                <div class="flex_1"></div>
+
+                <!-- TR -->
+                <div class="deform-corner top-right">
+                  <!-- <span class="corner-label">Верх-право</span> -->
+                  <div class="row">
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="odd-tr-x" type="text" value="0.0">
+                  </div>
+                  <div class="row">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="odd-tr-y" type="text" value="0.0">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Canvas -->
+              <div class="canvas_cnt">
+                <svg class="warp-canvas" id="canvas-front" xmlns="http://www.w3.org/2000/svg"></svg>
+              </div>
+
+              <div class="col">
+                <!-- BL -->
+                <div class="deform-corner bottom-left">
+                  <div class="row">
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="odd-bl-x" type="text" value="0.0">
+                  </div>
+                  <div class="row">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="odd-bl-y" type="text" value="0.0">
+                  </div>
+                </div>
+
+                <div class="flex_1"></div>
+
+                <!-- BR -->
+                <div class="deform-corner bottom-right">
+                  <div class="row">
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="odd-br-x" type="text" value="0.0">
+                  </div>
+                  <div class="row">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="odd-br-y" type="text" value="0.0">
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- BACK deformation card -->
+        <div class="col-back">
+          <div class="card deform-card" id="card-back">
+            <div class="card-header">
+              <div class="card-title">Деформація — Парні (BACK)</div>
+              <div class="back-hint" id="back-hint">Всі сторінки обробляються зі значеннями FRONT</div>
+            </div>
+            <div class="deform-card-body">
+              <div class="row_sp_btw size_100">
+                <div class="col">
+                  <!-- TL -->
+                  <div class="deform-corner top-left">
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="even-tl-x" type="text" value="0.0">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="even-tl-y" type="text" value="0.0">
+                  </div>
+
+                  <div class="flex_1"></div>
+
+                  <!-- TR -->
+                  <div class="deform-corner top-right">
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="even-tr-x" type="text" value="0.0">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="even-tr-y" type="text" value="0.0">
+                  </div>
+
+                </div>
+
+                <!-- Canvas -->
+                <div class="canvas_cnt">
+                  <svg class="warp-canvas" id="canvas-back" xmlns="http://www.w3.org/2000/svg"></svg>
+                </div>
+
+                <div class="col">
+                  <!-- BL -->
+                  <div class="deform-corner bottom-left">
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="even-bl-x" type="text" value="0.0">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="even-bl-y" type="text" value="0.0">
+                  </div>
+                  <div class="flex_1"></div>
+                  <!-- BR -->
+                  <div class="deform-corner bottom-right">
+                    <span class="corner-axis-label">X</span>
+                    <input class="corner-input" id="even-br-x" type="text" value="0.0">
+                    <span class="corner-axis-label">Y</span>
+                    <input class="corner-input" id="even-br-y" type="text" value="0.0">
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- Right panel -->
+      <div class="col-right">
+
+        <!-- Settings tabbed card -->
+        <div class="card settings-card" id="settings-card">
+
+          <!-- Tab bar -->
+          <div class="tab-bar">
+            <button class="tab-btn active" data-tab="tab-raster">Растрування</button>
+            <button class="tab-btn" data-tab="tab-suffix">Суфікси</button>
+            <button class="tab-btn" data-tab="tab-icc">ICC профілі</button>
+          </div>
+
+          <!-- Tab: Растрування -->
+          <div class="tab-content active" id="tab-raster">
+            <div class="settings-row">
+              <span class="settings-label">Роздільна здатність (DPI)</span>
+              <select id="dpi-select" class="select-field" style="width:90px;">
+                <option value="150">150</option>
+                <option value="300" selected>300</option>
+                <option value="600">600</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Інтерполяція деформації</span>
+              <select id="interp-select" class="select-field" style="width:210px;">
+                <option value="INTER_LANCZOS4">Lanczos (найкраща якість)</option>
+                <option value="INTER_CUBIC">Cubic (висока якість)</option>
+                <option value="INTER_LINEAR">Linear (стандартна)</option>
+                <option value="INTER_NEAREST">Nearest (без згладжування)</option>
+              </select>
+            </div>
+            <div class="settings-hint"
+              style="font-size:var(--font-size-small);color:var(--color-text-secondary);padding-bottom:var(--space-2);">
+              Впливає лише на режими з деформацією. Lanczos рекомендовано для тексту.
+            </div>
+            <div class="settings-row">
+              <span class="settings-label">Стиснення проміжних файлів</span>
+              <select id="compression-select" class="select-field" style="width:210px;">
+                <option value="tiff_lzw">TIFF LZW (без втрат)</option>
+                <option value="tiff_deflate">TIFF Deflate (без втрат)</option>
+                <option value="none">Без стиснення (найшвидше)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Tab: Суфікси -->
+          <div class="tab-content" id="tab-suffix">
+            <div class="suffix-grid">
+              <span class="suffix-label">Суфікс CMYK</span>
+              <input id="suffix-cmyk" class="input-field" type="text" value="_CMYK" style="width:120px;">
+              <span class="suffix-label">Суфікс Grayscale</span>
+              <input id="suffix-gray" class="input-field" type="text" value="_GRAY" style="width:120px;">
+              <span class="suffix-label">Суфікс RGB</span>
+              <input id="suffix-rgb" class="input-field" type="text" value="_RGB" style="width:120px;">
+            </div>
+          </div>
+
+          <!-- Tab: ICC профілі -->
+          <div class="tab-content" id="tab-icc">
+            <label class="checkbox-row" style="padding-bottom:var(--space-2);">
+              <input type="checkbox" id="icc-use" checked>
+              Призначати ICC профіль (embed)
+            </label>
+            <div class="icc-grid" id="icc-grid">
+              <!-- filled by main.js -->
+            </div>
+            <div style="font-size:var(--font-size-small);color:var(--color-text-secondary);padding-top:var(--space-2);">
+              Профіль призначається як тег. Кольори не конвертуються.
+            </div>
+          </div>
+
+        </div><!-- /settings-card -->
+
+        <div class="right-spacer"></div>
+
+        <!-- Launch card -->
+        <div class="card launch-card" id="launch-card">
+          <div class="card-title" style="margin-bottom:var(--space-2);">Запуск обробки</div>
+          <select id="mode-select" class="select-field" style="margin-bottom:var(--space-3);">
+            <!-- filled by main.js -->
+          </select>
+          <label class="checkbox-row" style="margin-bottom:var(--space-3);">
+            <input type="checkbox" id="auto-open" checked>
+            Відкрити оброблений документ
+          </label>
+          <button id="btn-run" class="btn btn-launch">▶&nbsp;&nbsp;Запустити</button>
+        </div>
+
+      </div><!-- /col-right -->
+    </div><!-- /main-area -->
+
+    <!-- ── Progress bar ───────────────────────────────────────── -->
+    <div class="progress-bar card hidden" id="progress-bar">
+      <div class="spinner" id="spinner"></div>
+      <span class="status-label" id="progress-status">Очікування...</span>
+      <span class="page-counter" id="page-counter"></span>
+    </div>
+
+    <!-- ── Status bar ─────────────────────────────────────────── -->
+    <div class="status-bar">
+      <span class="status-label" id="status-label"></span>
+    </div>
+
+  </div><!-- /app-wrapper -->
+
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+
+</html>

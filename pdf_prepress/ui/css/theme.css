@@ -1,0 +1,87 @@
+/* theme.css — Design tokens only. No rules outside :root {}. */
+
+:root {
+
+  /* ── Typography ─────────────────────── */
+  --font-family:        'Montserrat', 'Segoe UI', sans-serif;
+  --font-size-title:    24px;
+  --font-size-base:     14px;
+  --font-size-small:    12px;
+  --font-size-btn:      14px;
+  --font-weight-normal: 400;
+  --font-weight-bold:   600;
+
+  /* ── Color: backgrounds ─────────────── */
+  --color-window-bg:    #F0F0F0;
+  --color-card-bg:      #FFFFFF;
+  --color-tab-active:   #FFFFFF;
+  --color-tab-inactive: #EFEFEF;
+  --color-dropdown-bg:  #F5F5F5;
+  --color-input-bg:     #FFFFFF;
+
+  /* ── Color: text ────────────────────── */
+  --color-text-primary:      #1A1A1A;
+  --color-text-secondary:    #888888;
+  --color-text-tab-active:   #1A1A1A;
+  --color-text-tab-inactive: #888888;
+  --color-text-on-btn:       #FFFFFF;
+
+  /* ── Color: borders ─────────────────── */
+  --color-border-card:  #DCDCDC;
+  --color-border-input: #CCCCCC;
+  --color-border-focus: #555555;
+
+  /* ── Color: accent ──────────────────── */
+  --color-accent:       #555555;
+  --color-accent-hover: #444444;
+  --color-accent-light: #E8E8E8;
+
+  /* ── Color: buttons ─────────────────── */
+  --color-btn-launch:        #2E7D32;
+  --color-btn-launch-hover:  #388E3C;
+  --color-btn-stop:          #C62828;
+  --color-btn-stop-hover:    #D32F2F;
+  --color-btn-normal:        #FFFFFF;
+  --color-btn-normal-hover:  #F0F0F0;
+  --color-btn-normal-border: #CCCCCC;
+  --color-btn-normal-text:   #1A1A1A;
+
+  /* ── Color: warp preview ────────────── */
+  --color-warp-front:    #2979FF;
+  --color-warp-back:     #FF6D00;
+  --color-warp-original: #AAAAAA;
+  --color-warp-disabled: #909090;
+
+  /* ── Border radius ──────────────────── */
+  --radius-card:     10px;
+  --radius-btn:       8px;
+  --radius-btn-sm:    6px;
+  --radius-input:     6px;
+  --radius-dropdown:  6px;
+  --radius-tab:       0px;
+  --radius-checkbox:  4px;
+
+  /* ── Spacing / padding ──────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  /* ── Grid ───────────────────────────── */
+  --grid-gap:          8px;
+  --col-right-width:   320px;
+  --layout-breakpoint: 900px;
+
+  /* ── Component sizes ────────────────── */
+  --input-height:   28px;
+  --btn-height-lg:  44px;
+  --btn-height-sm:  32px;
+  --tab-bar-height: 38px;
+  --spinner-size:   24px;
+
+  /* ── Transitions ────────────────────── */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+}

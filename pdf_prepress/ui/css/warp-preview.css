@@ -1,0 +1,124 @@
+/* warp-preview.css — Deformation card internal layout and SVG warp preview. */
+
+/* ── Deformation card body ────────────────────────────────── */
+.deform-card-body {
+  display: grid;
+  grid-template-columns: 90px 1fr 90px;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--space-2);
+  flex: 1;
+  min-height: 0;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+}
+
+/* ── Corner input groups ──────────────────────────────────── */
+.deform-corner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 20%;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
+.deform-corner.top-left {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+}
+
+.deform-corner.top-right {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+}
+
+.deform-corner.bottom-left {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: end;
+}
+
+.deform-corner.bottom-right {
+  grid-column: 3;
+  grid-row: 3;
+  align-self: end;
+}
+
+/* ── Warp SVG canvas ──────────────────────────────────────── */
+.canvas_cnt {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  padding: 30px 0;
+}
+
+.size_cnt {
+  flex-shrink: 0;
+}
+
+.warp-canvas {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  width: 100%;
+  height: 100%;
+  /* border: 1px solid var(--color-border-card); */
+  /* border-radius: var(--radius-btn-sm); */
+  background: var(--color-card-bg);
+  display: block;
+}
+
+/* ── Corner label (title like "Верх-ліво") ────────────────── */
+.corner-label {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+/* ── Corner axis label ("X (мм)" / "Y (мм)") ─────────────── */
+.corner-axis-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* ── Corner input field (narrow) ─────────────────────────── */
+.corner-input {
+  height: var(--input-height);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  padding: 0 var(--space-2);
+  background: var(--color-input-bg);
+  font-size: var(--font-size-base);
+  text-align: center;
+  transition: border-color var(--transition-fast);
+  max-width: 80px;
+}
+
+.corner-input:focus {
+  border-color: var(--color-border-focus);
+  outline: none;
+}
+
+.corner-input:hover {
+  border-color: var(--color-border-focus);
+}
+
+.corner-input:disabled {
+  background: var(--color-accent-light);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+/* ── Back-card hint (shown in single-sided mode) ──────────── */
+.back-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-4);
+  display: none;
+}
+
+.back-hint.visible {
+  display: block;
+}

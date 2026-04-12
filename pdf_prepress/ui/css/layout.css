@@ -1,0 +1,172 @@
+/* layout.css — Main grid, columns, responsive breakpoints. */
+
+/* ── App wrapper ──────────────────────────────────────────── */
+.app-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  gap: var(--grid-gap);
+  padding: var(--grid-gap);
+  overflow: hidden;
+}
+
+/* ── File bar ─────────────────────────────────────────────── */
+.file-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Print-mode bar ───────────────────────────────────────── */
+.print-mode-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ── Main content area ────────────────────────────────────── */
+.main-area {
+  flex: 1;
+  display: flex;
+  gap: var(--grid-gap);
+  min-height: 0;
+  /* critical for flex children overflow */
+}
+
+/* ── Deformation columns (FRONT / BACK) ───────────────────── */
+.col-front,
+.col-back {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+
+.col-deform-cnt {
+  display: flex;
+  flex-direction: row;
+  flex: 2;
+  gap: var(--grid-gap);
+}
+
+/* ── Right settings/launch column ────────────────────────── */
+.col-right {
+  width: var(--col-right-width);
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--grid-gap);
+  min-height: 0;
+}
+
+.col-right .settings-card {
+  flex: 0 0 auto;
+}
+
+.col-right .right-spacer {
+  flex: 1;
+}
+
+.col-right .launch-card {
+  flex: 0 0 auto;
+}
+
+/* ── Progress bar ─────────────────────────────────────────── */
+.progress-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.flex_1 {
+  display: flex;
+  flex: 1;
+}
+
+.flex_2 {
+  display: flex;
+  flex: 2;
+}
+
+.progress-bar.hidden {
+  display: none;
+}
+
+/* ── Status bar ───────────────────────────────────────────── */
+.status-bar {
+  flex: 0 0 auto;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+}
+
+.row_sp_btw {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.width_100 {
+  width: 100%;
+}
+
+.width_25 {
+  width: 25%;
+}
+
+
+.size_100 {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* ── Responsive: narrow layout ────────────────────────────── */
+@media (max-width: 900px) {
+  .main-area {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .col-front,
+  .col-back {
+    flex: 0 0 auto;
+    /* hei3ght: 420px; */
+    /* width: 100%; */
+  }
+
+  .col-right {
+    width: 100%;
+    flex-direction: row;
+    flex: 0 0 auto;
+  }
+
+  .col-right .settings-card {
+    flex: 1;
+  }
+
+  .col-right .right-spacer {
+    display: none;
+  }
+
+  .col-right .launch-card {
+    flex: 0 0 280px;
+  }
+
+  .col-deform-cnt {
+    flex: 1;
+  }
+}
