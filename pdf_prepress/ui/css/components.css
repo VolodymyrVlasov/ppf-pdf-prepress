@@ -84,7 +84,8 @@
 /* ── Tab content ──────────────────────────────────────────── */
 .tab-content {
   display: none;
-  padding: var(--space-3) 0 var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  box-sizing: border-box;
 }
 
 .tab-content.active {
@@ -336,31 +337,87 @@
   padding: var(--space-1) 0 var(--space-2);
 }
 
-/* ── ICC grid ─────────────────────────────────────────────── */
-.icc-grid {
-  display: grid;
-  grid-template-columns: 80px 1fr auto;
-  gap: var(--space-1) var(--space-2);
+/* ── ICC rows (flex column container replacing old icc-grid) ── */
+.icc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ── Input row (label + control, uniform width across tabs) ── */
+.input-row {
+  display: flex;
   align-items: center;
-  padding: var(--space-1) 0;
+  gap: var(--space-2);
+  width: 100%;
+  margin-bottom: var(--space-4)
 }
 
-.icc-label {
-  font-size: var(--font-size-base);
-  color: var(--color-text-primary);
+.input-row .input-label {
+  flex: 0 0 80px;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
 }
 
-/* ── Suffix grid ──────────────────────────────────────────── */
-.suffix-grid {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-1) var(--space-2);
+.input-row .select-field,
+.input-row .input-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.input-row .btn-sm {
+  flex: 0 0 auto;
+}
+
+.input-row .dpi-control {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── DPI control (preset buttons + free number input) ─────── */
+.dpi-control {
+  display: flex;
   align-items: center;
+  gap: var(--space-1);
+  width: 100%;
 }
 
-.suffix-label {
-  font-size: var(--font-size-base);
+.dpi-preset {
+  flex: 0 0 auto;
+  height: var(--input-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-btn-sm);
+  background: var(--color-btn-normal);
   color: var(--color-text-primary);
+  font-size: var(--font-size-small);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dpi-preset:hover {
+  background: var(--color-btn-normal-hover);
+  border-color: var(--color-border-focus);
+}
+
+.dpi-preset.active {
+  background: var(--color-accent);
+  color: #FFFFFF;
+  border-color: var(--color-accent);
+}
+
+.dpi-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Settings-card: all inputs/selects full width ──────────── */
+.settings-card .input-field,
+.settings-card select,
+.settings-card .select-field {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── File bar label ───────────────────────────────────────── */

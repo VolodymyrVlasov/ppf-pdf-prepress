@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDF Pre-Press</title>
+  <link rel="icon" href="assets/icon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="assets/icon.ico" type="image/x-icon">
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/layout.css">
@@ -138,17 +140,18 @@
 
           <!-- Tab: Растрування -->
           <div class="tab-content active" id="tab-raster">
-            <div class="settings-row">
-              <span class="settings-label">Роздільна здатність (DPI)</span>
-              <select id="dpi-select" class="select-field select-sm">
-                <option value="150">150</option>
-                <option value="300" selected>300</option>
-                <option value="600">600</option>
-              </select>
+            <div class="input-row">
+              <span class="input-label">DPI</span>
+              <div class="dpi-control">
+                <button class="dpi-preset" data-value="150">150</button>
+                <button class="dpi-preset active" data-value="300">300</button>
+                <button class="dpi-preset" data-value="600">600</button>
+                <input id="dpi-value" class="input-field dpi-input" type="number" value="300" min="72" max="1200">
+              </div>
             </div>
-            <div class="settings-row">
-              <span class="settings-label">Інтерполяція деформації</span>
-              <select id="interp-select" class="select-field select-lg">
+            <div class="input-row">
+              <span class="input-label">Інтерполяція</span>
+              <select id="interp-select" class="select-field">
                 <option value="INTER_LANCZOS4">Lanczos (найкраща якість)</option>
                 <option value="INTER_CUBIC">Cubic (висока якість)</option>
                 <option value="INTER_LINEAR">Linear (стандартна)</option>
@@ -158,9 +161,9 @@
             <div class="settings-hint">
               Впливає лише на режими з деформацією. Lanczos рекомендовано для тексту.
             </div>
-            <div class="settings-row">
-              <span class="settings-label">Стиснення проміжних файлів</span>
-              <select id="compression-select" class="select-field select-lg">
+            <div class="input-row">
+              <span class="input-label">Стиснення</span>
+              <select id="compression-select" class="select-field">
                 <option value="tiff_lzw">TIFF LZW (без втрат)</option>
                 <option value="tiff_deflate">TIFF Deflate (без втрат)</option>
                 <option value="none">Без стиснення (найшвидше)</option>
@@ -170,13 +173,17 @@
 
           <!-- Tab: Суфікси -->
           <div class="tab-content" id="tab-suffix">
-            <div class="suffix-grid">
-              <span class="suffix-label">Суфікс CMYK</span>
-              <input id="suffix-cmyk" class="input-field suffix-input" type="text" value="_CMYK">
-              <span class="suffix-label">Суфікс Grayscale</span>
-              <input id="suffix-gray" class="input-field suffix-input" type="text" value="_GRAY">
-              <span class="suffix-label">Суфікс RGB</span>
-              <input id="suffix-rgb" class="input-field suffix-input" type="text" value="_RGB">
+            <div class="input-row">
+              <span class="input-label">Суфікс CMYK</span>
+              <input id="suffix-cmyk" class="input-field" type="text" value="_CMYK">
+            </div>
+            <div class="input-row">
+              <span class="input-label">Суфікс Grayscale</span>
+              <input id="suffix-gray" class="input-field" type="text" value="_GRAY">
+            </div>
+            <div class="input-row">
+              <span class="input-label">Суфікс RGB</span>
+              <input id="suffix-rgb" class="input-field" type="text" value="_RGB">
             </div>
           </div>
 
@@ -186,7 +193,7 @@
               <input type="checkbox" id="icc-use" checked>
               Призначати ICC профіль (embed)
             </label>
-            <div class="icc-grid" id="icc-grid">
+            <div class="icc-rows" id="icc-grid">
               <!-- filled by main.js -->
             </div>
             <div class="settings-hint">
@@ -200,6 +207,7 @@
 
         <!-- Launch card -->
         <div class="card launch-card" id="launch-card">
+          <div class="col">
           <div class="card-title">Запуск обробки</div>
           <select id="mode-select" class="select-field">
             <!-- filled by main.js -->
@@ -208,6 +216,8 @@
             <input type="checkbox" id="auto-open" checked>
             Відкрити оброблений документ
           </label>
+          </div>
+
           <button id="btn-run" class="btn btn-launch">▶&nbsp;&nbsp;Запустити</button>
         </div>
 

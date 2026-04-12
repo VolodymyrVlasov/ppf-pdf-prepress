@@ -6,6 +6,12 @@
   gap: var(--grid-gap);
 }
 
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--grid-gap);
+}
+
 /* ── App wrapper ──────────────────────────────────────────── */
 .app-wrapper {
   display: flex;
@@ -93,7 +99,8 @@
 @media (max-width: 900px) {
 
   .row {
-    flex: 1;
+    flex: 2;
+    max-height: 60vh;
   }
 
   /* main-area becomes a column — deform cards on top, right panel below */
@@ -107,8 +114,8 @@
   .col-front,
   .col-back {
     width: 100%;
-    height: 420px;
-    flex: 0 0 420px;
+    height: 100%;
+    flex: 1;
   }
 
   /* Right panel: full width, row direction (settings left, launch right) */
@@ -120,8 +127,9 @@
   }
 
   .col-right .settings-card {
-    flex: 1;
+    flex: 3;
     min-width: 0;
+    height: 100%;
   }
 
   .col-right-spacer {
@@ -129,7 +137,11 @@
   }
 
   .col-right .launch-card {
-    flex: 0 0 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 2;
     width: 260px;
+    height: 100%;
   }
 }

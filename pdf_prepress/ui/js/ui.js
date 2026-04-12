@@ -109,9 +109,10 @@ const WarpPreview = (() => {
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
 
-    const margin = 14;
-    const scaleX = (W - margin * 2) / PAGE_W;
-    const scaleY = (H - margin * 2) / PAGE_H;
+    const marginX = W * 0.1;
+    const marginY = H * 0.1;
+    const scaleX = (W - marginX * 2) / PAGE_W;
+    const scaleY = (H - marginY * 2) / PAGE_H;
     const scale  = Math.min(Math.max(scaleX, 0.2), Math.min(scaleY, 2.5));
 
     const cx = W / 2;
@@ -182,6 +183,45 @@ const WarpPreview = (() => {
   }
 
   return { register, setDisabled, draw, redrawAll };
+})();
+
+
+// ── DPI control (preset buttons + free input) ────────────────────────────
+
+const DpiControl = (() => {
+  function init() {
+    const input   = document.getElementById('dpi-value');
+    const presets = document.querySelectorAll('.dpi-preset');
+    if (!input || !presets.length) return;
+
+    presets.forEach(btn => {
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.value;
+        _syncActive(presets, btn.dataset.value);
+      });
+    });
+
+    input.addEventListener('input', () => {
+      _syncActive(presets, input.value.trim());
+    });
+
+    // Mark 300 active on init (already set in HTML, but sync just in case)
+    _syncActive(presets, input.value.trim());
+  }
+
+  function _syncActive(presets, value) {
+    presets.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === value);
+    });
+  }
+
+  function syncPresets() {
+    const input   = document.getElementById('dpi-value');
+    const presets = document.querySelectorAll('.dpi-preset');
+    if (input && presets.length) _syncActive(presets, input.value.trim());
+  }
+
+  return { init, syncPresets };
 })();
 
 

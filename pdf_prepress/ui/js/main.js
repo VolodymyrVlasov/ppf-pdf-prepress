@@ -22,7 +22,7 @@ const App = (() => {
     el.btnOpenFolder  = document.getElementById('btn-open-folder');
     el.radioSingle    = document.getElementById('radio-single');
     el.radioDouble    = document.getElementById('radio-double');
-    el.dpiSelect      = document.getElementById('dpi-select');
+    el.dpiValue       = document.getElementById('dpi-value');
     el.interpSelect   = document.getElementById('interp-select');
     el.comprSelect    = document.getElementById('compression-select');
     el.suffixCmyk     = document.getElementById('suffix-cmyk');
@@ -77,11 +77,15 @@ const App = (() => {
       const profiles = await API.getProfiles(csKey);
       const hasProfiles = profiles && profiles.length > 0;
 
+      // Row wrapper
+      const row = document.createElement('div');
+      row.className = 'input-row';
+
       // Label
       const lbl = document.createElement('span');
-      lbl.className = 'icc-label';
+      lbl.className = 'input-label';
       lbl.textContent = label;
-      el.iccGrid.appendChild(lbl);
+      row.appendChild(lbl);
 
       // Select
       const sel = document.createElement('select');
@@ -101,7 +105,7 @@ const App = (() => {
         opt.textContent = '— не знайдено —';
         sel.appendChild(opt);
       }
-      el.iccGrid.appendChild(sel);
+      row.appendChild(sel);
 
       // Refresh button
       const btn = document.createElement('button');
@@ -109,7 +113,9 @@ const App = (() => {
       btn.textContent = '⟳';
       btn.title = `Оновити список ${label}`;
       btn.addEventListener('click', () => _refreshIccDropdown(csKey));
-      el.iccGrid.appendChild(btn);
+      row.appendChild(btn);
+
+      el.iccGrid.appendChild(row);
     }
 
     _updateIccState();
@@ -158,8 +164,8 @@ const App = (() => {
 
     // DPI
     if (s.dpi) {
-      const opt = el.dpiSelect.querySelector(`option[value="${s.dpi}"]`);
-      if (opt) el.dpiSelect.value = String(s.dpi);
+      el.dpiValue.value = String(s.dpi);
+      DpiControl.syncPresets();
     }
 
     // Interpolation
@@ -241,7 +247,7 @@ const App = (() => {
     });
 
     return {
-      dpi:                parseInt(el.dpiSelect.value, 10) || 300,
+      dpi:                parseInt(el.dpiValue.value, 10) || 300,
       odd_corners:        _readCorners(el.odd),
       even_corners:       _readCorners(el.even),
       output_suffix_cmyk: el.suffixCmyk.value || '_CMYK',
@@ -431,6 +437,7 @@ const App = (() => {
     Progress.init(el.progressBar, el.progressStatus, el.pageCounter, el.spinner);
     StatusBar.init(el.statusLabel);
     Tabs.init();
+    DpiControl.init();
 
     try {
       await API.ready();

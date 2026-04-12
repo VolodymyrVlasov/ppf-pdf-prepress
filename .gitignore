@@ -1,0 +1,97 @@
+# ── Python ───────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build_tmp/
+.eggs/
+pip-wheel-metadata/
+*.whl
+
+# ── Virtual environments ──────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# ── PyInstaller build output ──────────────
+build/
+dist/
+dist_installer/
+*.spec.bak
+build/__pycache__/
+
+# ── Inno Setup ────────────────────────────
+*.iss.bak
+Output/
+
+# ── Ghostscript bundled files ─────────────
+# Large binary — user copies manually before build
+build/ghostscript/bin/
+build/ghostscript/lib/
+build/ghostscript/Resource/
+build/ghostscript/iccprofiles/
+build/ghostscript/doc/
+build/ghostscript/examples/
+# Keep only the README.txt inside ghostscript/
+!build/ghostscript/README.txt
+
+# ── App settings (user-specific) ─────────
+pdf_prepress/settings.json
+
+# ── ICC profiles (user-provided) ─────────
+# Users add their own — do not track
+pdf_prepress/icc_profiles/cmyk/*.icc
+pdf_prepress/icc_profiles/cmyk/*.icm
+pdf_prepress/icc_profiles/rgb/*.icc
+pdf_prepress/icc_profiles/rgb/*.icm
+pdf_prepress/icc_profiles/gray/*.icc
+pdf_prepress/icc_profiles/gray/*.icm
+# Keep the README.txt files inside each subfolder
+!pdf_prepress/icc_profiles/cmyk/README.txt
+!pdf_prepress/icc_profiles/rgb/README.txt
+!pdf_prepress/icc_profiles/gray/README.txt
+
+# ── Fonts (large binary, user downloads) ──
+pdf_prepress/ui/fonts/*.woff
+pdf_prepress/ui/fonts/*.woff2
+pdf_prepress/ui/fonts/*.ttf
+# Keep README.txt explaining where to get fonts
+!pdf_prepress/ui/fonts/README.txt
+
+# ── Temporary processing files ────────────
+*.tif
+*.tiff
+tmp/
+temp/
+
+# ── Logs ──────────────────────────────────
+*.log
+logs/
+
+# ── OS files ──────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# ── IDE / Editor ──────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ── Test output ───────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+test_output/
+tests/__pycache__/

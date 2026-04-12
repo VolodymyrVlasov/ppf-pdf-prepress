@@ -9,9 +9,12 @@ processor.py — Ядро обробки зображень для PDF пре-п
   оригінальних колірних значень (наприклад, CMYK 0,0,0,100 → залишається 0,0,0,100).
 """
 
+import glob
 import io
+import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 from pathlib import Path
@@ -24,8 +27,14 @@ import pikepdf
 from PIL import Image
 
 
-# Коренева директорія модуля та папка ICC-профілів
-_HERE = Path(__file__).parent
+# Коренева директорія модуля та папка ICC-профілів.
+# У замороженому бандлі (PyInstaller) sys._MEIPASS вказує на папку з розпакованими
+# ресурсами; у звичайному режимі використовується розташування цього файлу.
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    _HERE = Path(sys._MEIPASS)
+else:
+    _HERE = Path(__file__).parent
+
 ICC_DIR = _HERE / "icc_profiles"   # публічна константа, імпортується gui.py
 
 # Відображення імен констант інтерполяції на значення cv2
@@ -79,16 +88,55 @@ def get_profiles(color_space: str) -> list[str]:
 # Внутрішні допоміжники
 # ---------------------------------------------------------------------------
 
+def get_gs_executable() -> str:
+    """
+    Повертає повний шлях до виконуваного файлу Ghostscript.
+
+    Порядок пошуку:
+      1. Бандл PyInstaller: {sys._MEIPASS}/gs/bin/gswin64c.exe
+      2. PATH: gswin64c → gswin32c → gs
+      3. Стандартні шляхи Windows: C:\\Program Files\\gs\\gs*\\bin\\gswin64c.exe
+
+    :raises FileNotFoundError: якщо GS не знайдено жодним із способів.
+    """
+    # 1. PyInstaller onedir bundle
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        bundled = os.path.join(sys._MEIPASS, "gs", "bin", "gswin64c.exe")
+        if os.path.isfile(bundled):
+            return bundled
+
+    # 2. System PATH
+    for name in ("gswin64c", "gswin32c", "gs"):
+        found = shutil.which(name)
+        if found:
+            return found
+
+    # 3. Common Windows install locations
+    for pattern in (
+        r"C:\Program Files\gs\gs*\bin\gswin64c.exe",
+        r"C:\Program Files (x86)\gs\gs*\bin\gswin64c.exe",
+    ):
+        matches = glob.glob(pattern)
+        if matches:
+            return sorted(matches)[-1]   # use latest version
+
+    raise FileNotFoundError(
+        "Ghostscript не знайдено.\n"
+        "Встановіть Ghostscript або додайте gswin64c.exe до PATH.\n"
+        "Завантажити: https://ghostscript.com/releases/"
+    )
+
+
 def _find_ghostscript() -> str | None:
     """
-    Знаходить виконуваний файл Ghostscript у PATH.
-    На Windows шукає gswin64c → gswin32c, на Unix — gs.
-    Повертає None, якщо GS не встановлено.
+    Знаходить виконуваний файл Ghostscript.
+    Обгортка навколо get_gs_executable() для зворотної сумісності;
+    повертає None замість виключення.
     """
-    for name in ("gswin64c", "gswin32c", "gs"):
-        if shutil.which(name):
-            return name
-    return None
+    try:
+        return get_gs_executable()
+    except FileNotFoundError:
+        return None
 
 
 # ---------------------------------------------------------------------------

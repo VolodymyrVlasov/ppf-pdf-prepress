@@ -12,9 +12,16 @@ main.py — Точка входу PDF Pre-Press Processor (pywebview UI).
     CSS-імпорти та JS-модулі працюють так само, як у браузері.
 """
 
+import sys
+import os
+
+# PyInstaller onedir bundle: set CWD to the bundle directory so that
+# all relative resource lookups resolve against the extracted files.
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    os.chdir(sys._MEIPASS)
+
 import http.server
 import socketserver
-import sys
 import threading
 import traceback
 from pathlib import Path
@@ -28,7 +35,10 @@ from app import Api
 # Paths
 # ---------------------------------------------------------------------------
 
-UI_DIR = Path(__file__).parent / "ui"
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    UI_DIR = Path(sys._MEIPASS) / "ui"
+else:
+    UI_DIR = Path(__file__).parent / "ui"
 
 # ---------------------------------------------------------------------------
 # Silent HTTP server (serves ui/ directory)
@@ -86,6 +96,11 @@ def main() -> None:
     )
 
     api.set_window(window)
+
+    import ctypes
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+        "PDFPrePress.App.1.0"
+    )
 
     webview.start(debug=False)
 
