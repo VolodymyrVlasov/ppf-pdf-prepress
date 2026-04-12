@@ -1,39 +1,39 @@
 {
-  "dpi": 600,
+  "dpi": 150,
   "odd_corners": {
     "tl": [
-      0.0,
-      0.0
+      0,
+      0
     ],
     "tr": [
-      0.0,
+      0,
       -0.6
     ],
     "bl": [
-      0.0,
-      0.0
+      0,
+      0
     ],
     "br": [
-      0.0,
-      -1.0
+      0,
+      -1
     ]
   },
   "even_corners": {
     "tl": [
-      0.0,
+      0,
       1.5
     ],
     "tr": [
-      0.0,
+      0,
       -0.6
     ],
     "bl": [
-      0.0,
+      0,
       1.2
     ],
     "br": [
-      0.0,
-      -1.0
+      0,
+      -1
     ]
   },
   "output_suffix_cmyk": "_CMYK",
@@ -44,8 +44,8 @@
   "icc_profile_rgb": "AdobeRGB1998.icc",
   "icc_profile_gray": "",
   "last_folder": "",
-  "last_open_folder": "",
-  "last_output_folder": "",
+  "last_open_folder": "C:\\Users\\PAPERFOX-V\\Desktop",
+  "last_output_folder": "C:\\Users\\PAPERFOX-V\\Desktop",
   "window_geometry": "1920x1137+-2227+-15",
   "print_mode": "single",
   "interpolation": "INTER_CUBIC",

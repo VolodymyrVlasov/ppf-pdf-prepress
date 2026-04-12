@@ -44,92 +44,85 @@
     <!-- ── Main area ─────────────────────────────────────────── -->
     <div class="main-area">
 
-      <!-- FRONT deformation card -->
-      <div class="col-front">
-        <div class="card deform-card" id="card-front">
-          <div class="card-header">
-            <div class="card-title">Деформація — Непарні (FRONT)</div>
-            <div class="card-subtitle">Зміщення кутів у мм&nbsp;&nbsp;(+ назовні, − всередину)</div>
+      <div class="row">
+        <!-- FRONT deformation card -->
+        <div class="col-front">
+          <div class="card deform-card" id="card-front">
+            <div class="card-header">
+              <div class="card-title">Деформація — Непарні (FRONT)</div>
+              <div class="card-subtitle">Зміщення кутів у мм&nbsp;&nbsp;(+ назовні, − всередину)</div>
+            </div>
+            <div class="deform-body">
+              <div class="deform-corner top-left">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="odd-tl-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="odd-tl-y" type="text" value="0.0">
+              </div>
+              <div class="deform-corner top-right">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="odd-tr-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="odd-tr-y" type="text" value="0.0">
+              </div>
+              <div class="deform-preview">
+                <svg class="warp-svg" id="canvas-front" xmlns="http://www.w3.org/2000/svg"></svg>
+              </div>
+              <div class="deform-corner bottom-left">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="odd-bl-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="odd-bl-y" type="text" value="0.0">
+              </div>
+              <div class="deform-corner bottom-right">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="odd-br-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="odd-br-y" type="text" value="0.0">
+              </div>
+            </div>
           </div>
-          <div class="deform-body">
-            <div class="deform-corner top-left">
-              <span class="corner-label">Верх-ліво</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="odd-tl-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="odd-tl-y" type="text" value="0.0">
+        </div>
+
+        <!-- BACK deformation card -->
+        <div class="col-back">
+          <div class="card deform-card" id="card-back">
+            <div class="card-header">
+              <div class="card-title">Деформація — Парні (BACK)</div>
+              <div class="back-hint" id="back-hint">Всі сторінки обробляються зі значеннями FRONT</div>
             </div>
-            <div class="deform-corner top-right">
-              <span class="corner-label">Верх-право</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="odd-tr-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="odd-tr-y" type="text" value="0.0">
-            </div>
-            <div class="deform-preview">
-              <svg class="warp-svg" id="canvas-front" xmlns="http://www.w3.org/2000/svg"></svg>
-            </div>
-            <div class="deform-corner bottom-left">
-              <span class="corner-label">Низ-ліво</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="odd-bl-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="odd-bl-y" type="text" value="0.0">
-            </div>
-            <div class="deform-corner bottom-right">
-              <span class="corner-label">Низ-право</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="odd-br-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="odd-br-y" type="text" value="0.0">
+            <div class="deform-body">
+              <div class="deform-corner top-left">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="even-tl-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="even-tl-y" type="text" value="0.0">
+              </div>
+              <div class="deform-corner top-right">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="even-tr-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="even-tr-y" type="text" value="0.0">
+              </div>
+              <div class="deform-preview">
+                <svg class="warp-svg" id="canvas-back" xmlns="http://www.w3.org/2000/svg"></svg>
+              </div>
+              <div class="deform-corner bottom-left">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="even-bl-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="even-bl-y" type="text" value="0.0">
+              </div>
+              <div class="deform-corner bottom-right">
+                <span class="corner-axis-label">X (мм)</span>
+                <input class="corner-input" id="even-br-x" type="text" value="0.0">
+                <span class="corner-axis-label">Y (мм)</span>
+                <input class="corner-input" id="even-br-y" type="text" value="0.0">
+              </div>
             </div>
           </div>
         </div>
       </div>
-
-      <!-- BACK deformation card -->
-      <div class="col-back">
-        <div class="card deform-card" id="card-back">
-          <div class="card-header">
-            <div class="card-title">Деформація — Парні (BACK)</div>
-            <div class="back-hint" id="back-hint">Всі сторінки обробляються зі значеннями FRONT</div>
-          </div>
-          <div class="deform-body">
-            <div class="deform-corner top-left">
-              <span class="corner-label">Верх-ліво</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="even-tl-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="even-tl-y" type="text" value="0.0">
-            </div>
-            <div class="deform-corner top-right">
-              <span class="corner-label">Верх-право</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="even-tr-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="even-tr-y" type="text" value="0.0">
-            </div>
-            <div class="deform-preview">
-              <svg class="warp-svg" id="canvas-back" xmlns="http://www.w3.org/2000/svg"></svg>
-            </div>
-            <div class="deform-corner bottom-left">
-              <span class="corner-label">Низ-ліво</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="even-bl-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="even-bl-y" type="text" value="0.0">
-            </div>
-            <div class="deform-corner bottom-right">
-              <span class="corner-label">Низ-право</span>
-              <span class="corner-axis-label">X (мм)</span>
-              <input class="corner-input" id="even-br-x" type="text" value="0.0">
-              <span class="corner-axis-label">Y (мм)</span>
-              <input class="corner-input" id="even-br-y" type="text" value="0.0">
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Right panel -->
       <div class="col-right">
 

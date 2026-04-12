@@ -1,4 +1,10 @@
 /* layout.css — Main grid, columns, responsive breakpoints. */
+.row {
+  display: flex;
+  flex-direction: row;
+  flex: 2;
+  gap: var(--grid-gap);
+}
 
 /* ── App wrapper ──────────────────────────────────────────── */
 .app-wrapper {
@@ -46,7 +52,8 @@
 /* ── Right settings/launch column ────────────────────────── */
 .col-right {
   width: var(--col-right-width);
-  flex-shrink: 0;
+  /* flex-shrink: 0; */
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--grid-gap);
@@ -85,11 +92,16 @@
 /* matches --layout-breakpoint: 900px from theme.css */
 @media (max-width: 900px) {
 
+  .row {
+    flex: 1;
+  }
+
   /* main-area becomes a column — deform cards on top, right panel below */
   .main-area {
     flex-direction: column;
     overflow-y: auto;
   }
+
 
   /* Both deform cards: full width, fixed height */
   .col-front,

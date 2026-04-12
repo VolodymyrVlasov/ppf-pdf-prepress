@@ -2,22 +2,22 @@
 
 /* ── Card ─────────────────────────────────────────────────── */
 .card {
-  background:    var(--color-card-bg);
-  border:        1px solid var(--color-border-card);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-card);
   border-radius: var(--radius-card);
-  padding:       var(--space-4);
+  padding: var(--space-4);
 }
 
 .card-title {
-  font-size:   var(--font-size-title);
+  font-size: var(--font-size-title);
   font-weight: var(--font-weight-bold);
-  color:       var(--color-text-primary);
+  color: var(--color-text-primary);
   margin-bottom: var(--space-1);
 }
 
 .card-subtitle {
-  font-size:  var(--font-size-small);
-  color:      var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
   margin-bottom: var(--space-2);
 }
 
@@ -38,18 +38,18 @@
 .tab-bar {
   display: flex;
   height: var(--tab-bar-height);
-  border-bottom: 1px solid var(--color-border-card);
+  /* border-bottom: 1px solid var(--color-border-card); */
   margin: 0 calc(-1 * var(--space-4));
-  margin-top: var(--space-2);
+  margin-top: -16px !important;
 }
 
 .tab-btn {
   flex: 1;
   height: 100%;
   background: var(--color-tab-inactive);
-  color:      var(--color-text-tab-inactive);
+  color: var(--color-text-tab-inactive);
   font-family: var(--font-family);
-  font-size:  var(--font-size-base);
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-normal);
   border: none;
   border-radius: var(--radius-tab);
@@ -66,8 +66,8 @@
 }
 
 .tab-btn.active {
-  background:  var(--color-tab-active);
-  color:       var(--color-text-tab-active);
+  background: var(--color-tab-active);
+  color: var(--color-text-tab-active);
   font-weight: var(--font-weight-bold);
 }
 
@@ -78,7 +78,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--color-accent);
+  background: №fff;
 }
 
 /* ── Tab content ──────────────────────────────────────────── */
@@ -105,15 +105,15 @@
 
 /* ── Text input ───────────────────────────────────────────── */
 .input-field {
-  height:        var(--input-height);
-  border:        1px solid var(--color-border-input);
+  height: var(--input-height);
+  border: 1px solid var(--color-border-input);
   border-radius: var(--radius-input);
-  padding:       0 var(--space-2);
-  background:    var(--color-input-bg);
-  font-family:   var(--font-family);
-  font-size:     var(--font-size-base);
-  color:         var(--color-text-primary);
-  transition:    border-color var(--transition-fast);
+  padding: 0 var(--space-2);
+  background: var(--color-input-bg);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast);
   width: 100%;
 }
 
@@ -128,15 +128,15 @@
 
 /* ── Select / dropdown ────────────────────────────────────── */
 .select-field {
-  height:        var(--input-height);
-  border:        1px solid var(--color-border-input);
+  height: var(--input-height);
+  border: 1px solid var(--color-border-input);
   border-radius: var(--radius-dropdown);
-  padding:       0 var(--space-5) 0 var(--space-2);
-  background:    var(--color-dropdown-bg);
-  font-family:   var(--font-family);
-  font-size:     var(--font-size-base);
-  color:         var(--color-text-primary);
-  appearance:    none;
+  padding: 0 var(--space-5) 0 var(--space-2);
+  background: var(--color-dropdown-bg);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -185,11 +185,11 @@
 
 /* ── Launch button ────────────────────────────────────────── */
 .btn-launch {
-  background:    var(--color-btn-launch);
-  color:         var(--color-text-on-btn);
-  height:        var(--btn-height-lg);
+  background: var(--color-btn-launch);
+  color: var(--color-text-on-btn);
+  height: var(--btn-height-lg);
   border-radius: var(--radius-btn);
-  font-size:     var(--font-size-btn);
+  font-size: var(--font-size-btn);
   width: 100%;
 }
 
@@ -204,11 +204,11 @@
 
 /* ── Stop button (same geometry as launch, different colors) */
 .btn-stop {
-  background:    var(--color-btn-stop);
-  color:         var(--color-text-on-btn);
-  height:        var(--btn-height-lg);
+  background: var(--color-btn-stop);
+  color: var(--color-text-on-btn);
+  height: var(--btn-height-lg);
   border-radius: var(--radius-btn);
-  font-size:     var(--font-size-btn);
+  font-size: var(--font-size-btn);
   width: 100%;
 }
 
@@ -223,15 +223,15 @@
 
 /* ── Small button (folder, refresh, add) ──────────────────── */
 .btn-sm {
-  height:        var(--btn-height-sm);
+  height: var(--btn-height-sm);
   border-radius: var(--radius-btn-sm);
-  border:        1px solid var(--color-btn-normal-border);
-  background:    var(--color-btn-normal);
-  color:         var(--color-btn-normal-text);
-  font-size:     var(--font-size-base);
-  padding:       0 var(--space-3);
-  font-weight:   var(--font-weight-normal);
-  white-space:   nowrap;
+  border: 1px solid var(--color-btn-normal-border);
+  background: var(--color-btn-normal);
+  color: var(--color-btn-normal-text);
+  font-size: var(--font-size-base);
+  padding: 0 var(--space-3);
+  font-weight: var(--font-weight-normal);
+  white-space: nowrap;
 }
 
 .btn-sm:hover {
@@ -240,8 +240,8 @@
 
 .btn-sm.btn-accent {
   background: var(--color-accent);
-  color:      var(--color-text-on-btn);
-  border:     none;
+  color: var(--color-text-on-btn);
+  border: none;
 }
 
 .btn-sm.btn-accent:hover {
@@ -287,29 +287,31 @@
 
 /* ── Spinner ──────────────────────────────────────────────── */
 .spinner {
-  width:         var(--spinner-size);
-  height:        var(--spinner-size);
-  border:        3px solid var(--color-accent-light);
+  width: var(--spinner-size);
+  height: var(--spinner-size);
+  border: 3px solid var(--color-accent-light);
   border-top-color: var(--color-accent);
   border-radius: 50%;
-  animation:     spin 0.8s linear infinite;
-  flex-shrink:   0;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Status label ─────────────────────────────────────────── */
 .status-label {
   flex: 1;
-  font-size:     var(--font-size-small);
-  color:         var(--color-text-secondary);
-  white-space:   nowrap;
-  overflow:      hidden;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
-  background:    var(--color-accent-light);
-  padding:       var(--space-1) var(--space-2);
+  background: var(--color-accent-light);
+  padding: var(--space-1) var(--space-2);
 }
 
 /* ── Settings row (label + control inline) ────────────────── */
@@ -381,8 +383,8 @@
 
 /* ── Page counter ─────────────────────────────────────────── */
 .page-counter {
-  font-size:  var(--font-size-base);
-  color:      var(--color-text-secondary);
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
   white-space: nowrap;
   margin-left: auto;
 }

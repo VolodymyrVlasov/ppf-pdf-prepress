@@ -12,7 +12,7 @@
   --font-weight-bold:   600;
 
   /* ── Color: backgrounds ─────────────── */
-  --color-window-bg:    #F0F0F0;
+  --color-window-bg:    #a5a5a5;
   --color-card-bg:      #FFFFFF;
   --color-tab-active:   #FFFFFF;
   --color-tab-inactive: #EFEFEF;
@@ -53,7 +53,7 @@
   --color-warp-disabled: #909090;
 
   /* ── Border radius ──────────────────── */
-  --radius-card:     10px;
+  --radius-card:     0px;
   --radius-btn:       8px;
   --radius-btn-sm:    6px;
   --radius-input:     6px;
