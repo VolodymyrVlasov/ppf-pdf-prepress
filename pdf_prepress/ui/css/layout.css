@@ -28,44 +28,35 @@
 
 /* ── Main content area ────────────────────────────────────── */
 .main-area {
-  flex: 1;
   display: flex;
+  flex: 1;
   gap: var(--grid-gap);
   min-height: 0;
-  /* critical for flex children overflow */
 }
 
 /* ── Deformation columns (FRONT / BACK) ───────────────────── */
 .col-front,
 .col-back {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-
-.col-deform-cnt {
-  display: flex;
-  flex-direction: row;
-  flex: 2;
-  gap: var(--grid-gap);
 }
 
 /* ── Right settings/launch column ────────────────────────── */
 .col-right {
   width: var(--col-right-width);
+  flex-shrink: 0;
   display: flex;
-  flex: 1;
   flex-direction: column;
   gap: var(--grid-gap);
-  min-height: 0;
 }
 
 .col-right .settings-card {
   flex: 0 0 auto;
 }
 
-.col-right .right-spacer {
+.col-right-spacer {
   flex: 1;
 }
 
@@ -81,16 +72,6 @@
   gap: var(--space-2);
 }
 
-.flex_1 {
-  display: flex;
-  flex: 1;
-}
-
-.flex_2 {
-  display: flex;
-  flex: 2;
-}
-
 .progress-bar.hidden {
   display: none;
 }
@@ -100,73 +81,43 @@
   flex: 0 0 auto;
 }
 
-.col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.row {
-  display: flex;
-  flex-direction: row;
-  gap: 16px;
-}
-
-.row_sp_btw {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.width_100 {
-  width: 100%;
-}
-
-.width_25 {
-  width: 25%;
-}
-
-
-.size_100 {
-  width: 100%;
-  height: 100%;
-}
-
-
 /* ── Responsive: narrow layout ────────────────────────────── */
+/* matches --layout-breakpoint: 900px from theme.css */
 @media (max-width: 900px) {
+
+  /* main-area becomes a column — deform cards on top, right panel below */
   .main-area {
     flex-direction: column;
     overflow-y: auto;
   }
 
+  /* Both deform cards: full width, fixed height */
   .col-front,
   .col-back {
-    flex: 0 0 auto;
-    /* hei3ght: 420px; */
-    /* width: 100%; */
+    width: 100%;
+    height: 420px;
+    flex: 0 0 420px;
   }
 
+  /* Right panel: full width, row direction (settings left, launch right) */
   .col-right {
     width: 100%;
     flex-direction: row;
-    flex: 0 0 auto;
+    align-items: flex-start;
+    height: auto;
   }
 
   .col-right .settings-card {
     flex: 1;
+    min-width: 0;
   }
 
-  .col-right .right-spacer {
+  .col-right-spacer {
     display: none;
   }
 
   .col-right .launch-card {
-    flex: 0 0 280px;
-  }
-
-  .col-deform-cnt {
-    flex: 1;
+    flex: 0 0 260px;
+    width: 260px;
   }
 }

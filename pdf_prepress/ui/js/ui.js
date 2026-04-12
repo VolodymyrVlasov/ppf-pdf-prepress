@@ -47,10 +47,14 @@ const WarpPreview = (() => {
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
 
-  const COLOR_ORIGINAL = '#C0C0C0';
-  const COLOR_FRONT    = '#2979FF';
-  const COLOR_BACK     = '#FF6D00';
-  const COLOR_DISABLED = '#909090';
+  function _cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  const COLOR_ORIGINAL = () => _cssVar('--color-warp-original') || '#AAAAAA';
+  const COLOR_FRONT    = () => _cssVar('--color-warp-front')    || '#2979FF';
+  const COLOR_BACK     = () => _cssVar('--color-warp-back')     || '#FF6D00';
+  const COLOR_DISABLED = () => _cssVar('--color-warp-disabled') || '#909090';
 
   /**
    * Describes one preview instance.
@@ -67,7 +71,9 @@ const WarpPreview = (() => {
    * @param {string}       color  - Stroke color for warped quad
    */
   function register(id, svg, inputs, color) {
-    _previews[id] = { svg, inputs, color, disabled: false };
+    // Normalize: accept a hex string or a function that returns the color
+    const colorFn = typeof color === 'function' ? color : () => color;
+    _previews[id] = { svg, inputs, color: colorFn, disabled: false };
 
     // Redraw on any input change
     Object.values(inputs).forEach(([xEl, yEl]) => {
@@ -125,7 +131,7 @@ const WarpPreview = (() => {
     const dashed = document.createElementNS(SVG_NS, 'polygon');
     dashed.setAttribute('points', order.map(k => orig[k].join(',')).join(' '));
     dashed.setAttribute('fill', 'none');
-    dashed.setAttribute('stroke', COLOR_ORIGINAL);
+    dashed.setAttribute('stroke', COLOR_ORIGINAL());
     dashed.setAttribute('stroke-width', '1');
     dashed.setAttribute('stroke-dasharray', '5,4');
     svg.appendChild(dashed);
@@ -140,7 +146,7 @@ const WarpPreview = (() => {
       offsets[key] = [x, y];
     }
 
-    const color = p.disabled ? COLOR_DISABLED : p.color;
+    const color = p.disabled ? COLOR_DISABLED() : p.color();
 
     // Warped quad
     const warped = {};
@@ -159,7 +165,7 @@ const WarpPreview = (() => {
     svg.appendChild(poly);
 
     // Corner dots
-    const R = 3;
+    const R = 4;
     for (const key of order) {
       const [px, py] = warped[key];
       const dot = document.createElementNS(SVG_NS, 'circle');

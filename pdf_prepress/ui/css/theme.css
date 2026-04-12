@@ -70,9 +70,10 @@
   --space-6: 24px;
 
   /* ── Grid ───────────────────────────── */
-  --grid-gap:          8px;
-  --col-right-width:   320px;
-  --layout-breakpoint: 900px;
+  --grid-gap:            8px;
+  --col-right-width:     320px;
+  --layout-breakpoint:   900px;
+  --deform-corner-width: 90px;  /* width of each corner input column */
 
   /* ── Component sizes ────────────────── */
   --input-height:   28px;

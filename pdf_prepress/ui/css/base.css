@@ -1,6 +1,20 @@
 /* base.css — Reset, typography, body, scrollbars, focus. */
 
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+/* Local Montserrat font (no external request — works offline and in pywebview) */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('../fonts/Montserrat-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
 
 /* ── Reset ────────────────────────────────────────────────── */
 *, *::before, *::after {

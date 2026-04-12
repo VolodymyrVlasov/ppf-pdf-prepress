@@ -1,14 +1,28 @@
 /* warp-preview.css — Deformation card internal layout and SVG warp preview. */
 
-/* ── Deformation card body ────────────────────────────────── */
-.deform-card-body {
+/* ── Deformation card (fills parent column height) ────────── */
+.deform-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.card-header {
+  min-height: 70px;
+}
+
+.deform-card .card-header {
+  flex-shrink: 0;
+}
+
+/* ── Deformation card body (3-column grid) ────────────────── */
+.deform-body {
   display: grid;
-  grid-template-columns: 90px 1fr 90px;
+  grid-template-columns: var(--deform-corner-width) 1fr var(--deform-corner-width);
   grid-template-rows: auto 1fr auto;
   gap: var(--space-2);
   flex: 1;
   min-height: 0;
-  padding: var(--space-2) var(--space-4) var(--space-4);
 }
 
 /* ── Corner input groups ──────────────────────────────────── */
@@ -16,9 +30,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  min-width: 20%;
-  flex-shrink: 0;
-  min-height: 0;
 }
 
 .deform-corner.top-left {
@@ -45,30 +56,27 @@
   align-self: end;
 }
 
-/* ── Warp SVG canvas ──────────────────────────────────────── */
-.canvas_cnt {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  padding: 30px 0;
-}
-
-.size_cnt {
-  flex-shrink: 0;
-}
-
-.warp-canvas {
+/* ── Warp preview container (center column) ───────────────── */
+.deform-preview {
   grid-column: 2;
   grid-row: 1 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100%;
-  /* border: 1px solid var(--color-border-card); */
-  /* border-radius: var(--radius-btn-sm); */
-  background: var(--color-card-bg);
-  display: block;
+  min-height: 200px;
 }
 
-/* ── Corner label (title like "Верх-ліво") ────────────────── */
+/* ── Warp SVG canvas ──────────────────────────────────────── */
+.warp-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--color-card-bg);
+}
+
+/* ── Corner label (position name like "Верх-ліво") ───────── */
 .corner-label {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
@@ -115,7 +123,7 @@
 .back-hint {
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
-  padding: var(--space-1) var(--space-4);
+  padding: var(--space-1) 0;
   display: none;
 }
 
