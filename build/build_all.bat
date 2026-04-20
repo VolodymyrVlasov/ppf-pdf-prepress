@@ -1,87 +1,94 @@
 @echo off
-chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 cd /d "%~dp0"
 
 echo.
 echo ======================================================
-echo   PDF Pre-Press - Zbirka instaliatora
+echo   PDF Pre-Press - Full Build
 echo ======================================================
 echo.
 
 :: ---------------------------------------------------
-:: Krok 1 - Perevirka naiavnosti Ghostscript
+:: Step 1 - Check Ghostscript
 :: ---------------------------------------------------
-echo [1/5] Perevirka Ghostscript...
-if not exist "ghostscript\bin\gswin64c.exe" (
+echo [1/5] Checking Ghostscript...
+if not exist ghostscript\bin\gswin64c.exe (
     echo.
-    echo  POMYLKA: Ghostscript ne znaideno u build\ghostscript\bin\gswin64c.exe
-    echo.
-    echo  Prochytaite instrukciiu: build\ghostscript\README.txt
-    echo  Pidhotuite faily GS i povtority zapusk build_all.bat
+    echo  ERROR: Ghostscript not found at build\ghostscript\bin\gswin64c.exe
+    echo  Read: build\ghostscript\README.txt
     echo.
     pause
     exit /b 1
 )
-echo  [OK] Ghostscript znaideno.
+echo  [OK] Ghostscript found.
 
 :: ---------------------------------------------------
-:: Krok 2 - Perevirka / vstanovlennia PyInstaller
+:: Step 2 - Check / install PyInstaller
 :: ---------------------------------------------------
 echo.
-echo [2/5] Perevirka PyInstaller...
+echo [2/5] Checking PyInstaller...
 python -m PyInstaller --version >nul 2>&1
 if errorlevel 1 (
-    echo  PyInstaller ne znaideno. Vstanovlennia...
+    echo  PyInstaller not found. Installing...
     pip install pyinstaller
     if errorlevel 1 (
-        echo  POMYLKA: ne vdalos vstanovyty PyInstaller.
+        echo  ERROR: Failed to install PyInstaller.
         pause
         exit /b 1
     )
 )
-echo  [OK] PyInstaller hotovyi.
+echo  [OK] PyInstaller ready.
 
 :: ---------------------------------------------------
-:: Krok 3 - Ochyshchennia poperednoi zbirky
+:: Step 3 - Clean previous build
 :: ---------------------------------------------------
 echo.
-echo [3/5] Ochyshchennia poperednih artefaktiv...
-if exist "..\dist\pdf_prepress"  rmdir /s /q "..\dist\pdf_prepress"
-if exist "..\build_tmp"          rmdir /s /q "..\build_tmp"
-echo  [OK] Ochyshcheno.
+echo [3/5] Cleaning previous artifacts...
+if exist ..\dist\pdf_prepress  rmdir /s /q ..\dist\pdf_prepress
+if exist ..\build_tmp          rmdir /s /q ..\build_tmp
+echo  [OK] Cleaned.
 
 :: ---------------------------------------------------
-:: Krok 4 - PyInstaller
+:: Step 4 - PyInstaller
 :: ---------------------------------------------------
 echo.
-echo [4/5] Zbirka dodatku cherez PyInstaller...
+echo [4/5] Building app with PyInstaller...
 python -m PyInstaller build.spec --distpath ..\dist --workpath ..\build_tmp
 if errorlevel 1 (
     echo.
-    echo  POMYLKA: PyInstaller zavershyvsia z pomylkoiu.
-    echo  Perehliante vyvid vyshche dlia detalei.
+    echo  ERROR: PyInstaller failed.
+    echo  Review the output above for details.
     pause
     exit /b 1
 )
-echo  [OK] PyInstaller zaversheno. Rezultat: dist\pdf_prepress\
+echo  [OK] PyInstaller done. Output: dist\pdf_prepress\
+
+:: Verify PyInstaller produced the expected output
+if not exist ..\dist\pdf_prepress\pdf_prepress.exe (
+    echo.
+    echo  ERROR: PyInstaller did not produce expected output.
+    echo  Expected: dist\pdf_prepress\pdf_prepress.exe
+    echo.
+    pause
+    exit /b 1
+)
 
 :: ---------------------------------------------------
-:: Krok 5 - Inno Setup
+:: Step 5 - Inno Setup
 :: ---------------------------------------------------
 echo.
-echo [5/5] Stvorennia instaliatora cherez Inno Setup...
+echo [5/5] Creating installer with Inno Setup...
 
-set "ISCC="
-if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if exist "C:\Program Files\Inno Setup 6\ISCC.exe"       set "ISCC=C:\Program Files\Inno Setup 6\ISCC.exe"
+set ISCC=
+if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+if exist "C:\Program Files\Inno Setup 6\ISCC.exe"       set ISCC=C:\Program Files\Inno Setup 6\ISCC.exe
 
-if not defined ISCC (
+if "%ISCC%"=="" (
     echo.
-    echo  POMYLKA: Inno Setup 6 ne znaideno.
-    echo  Zavantazhte ta vstanovit z: https://jrsoftware.org/isdl.php
-    echo  Ochikuvanyi shliakh: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+    echo  ERROR: Inno Setup 6 not found.
+    echo  Download from: https://jrsoftware.org/isdl.php
+    echo  Expected: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
     echo.
     pause
     exit /b 1
@@ -90,20 +97,20 @@ if not defined ISCC (
 "%ISCC%" installer.iss
 if errorlevel 1 (
     echo.
-    echo  POMYLKA: Inno Setup zavershyvsia z pomylkoiu.
-    echo  Perehliante vyvid vyshche dlia detalei.
+    echo  ERROR: Inno Setup failed.
+    echo  Review the output above for details.
     pause
     exit /b 1
 )
 
 :: ---------------------------------------------------
-:: Hotovo
+:: Done
 :: ---------------------------------------------------
 echo.
 echo ======================================================
-echo   HOTOVO!
+echo   DONE!
 echo.
-echo   Instaliatora zberezheno u:
+echo   Installer saved to:
 echo   dist_installer\setup_pdf_prepress.exe
 echo ======================================================
 echo.

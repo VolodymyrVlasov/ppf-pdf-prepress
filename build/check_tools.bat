@@ -1,16 +1,15 @@
 @echo off
-chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 cd /d "%~dp0"
 
 echo.
 echo ======================================================
-echo   PDF Pre-Press - Perevirka instrumentiv zbirky
+echo   PDF Pre-Press - Tool Check
 echo ======================================================
 echo.
 
-set "ERRORS=0"
+set ERRORS=0
 
 :: ---------------------------------------------------
 :: Python
@@ -18,8 +17,8 @@ set "ERRORS=0"
 echo --- Python ---
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo  [-] Python: NE ZNAIDENO
-    echo      Zavantazhte z: https://www.python.org/downloads/
+    echo  [-] Python: NOT FOUND
+    echo      Download: https://www.python.org/downloads/
     set /a ERRORS+=1
 ) else (
     for /f "tokens=*" %%v in ('python --version 2^>^&1') do (
@@ -95,11 +94,11 @@ if errorlevel 1 (
 echo.
 echo --- Ghostscript ---
 
-if exist "ghostscript\bin\gswin64c.exe" (
-    echo  [+] Ghostscript: znaideno u build\ghostscript\bin\gswin64c.exe
+if exist ghostscript\bin\gswin64c.exe (
+    echo  [+] Ghostscript: found at build\ghostscript\bin\gswin64c.exe
 ) else (
-    echo  [-] Ghostscript: NE ZNAIDENO u build\ghostscript\
-    echo      Prochytaite build\ghostscript\README.txt
+    echo  [-] Ghostscript: NOT FOUND in build\ghostscript\
+    echo      Read: build\ghostscript\README.txt
     set /a ERRORS+=1
 )
 
@@ -109,15 +108,15 @@ if exist "ghostscript\bin\gswin64c.exe" (
 echo.
 echo --- Inno Setup 6 ---
 
-set "ISCC_FOUND=0"
-if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC_FOUND=1"
-if exist "C:\Program Files\Inno Setup 6\ISCC.exe"       set "ISCC_FOUND=1"
+set ISCC_FOUND=0
+if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set ISCC_FOUND=1
+if exist "C:\Program Files\Inno Setup 6\ISCC.exe"       set ISCC_FOUND=1
 
 if "%ISCC_FOUND%"=="1" (
-    echo  [+] Inno Setup 6: znaideno
+    echo  [+] Inno Setup 6: found
 ) else (
-    echo  [-] Inno Setup 6: NE ZNAIDENO
-    echo      Zavantazhte z: https://jrsoftware.org/isdl.php
+    echo  [-] Inno Setup 6: NOT FOUND
+    echo      Download: https://jrsoftware.org/isdl.php
     set /a ERRORS+=1
 )
 
@@ -127,17 +126,17 @@ if "%ISCC_FOUND%"=="1" (
 echo.
 echo --- WebView2 Runtime ---
 
-set "WV2_FOUND=0"
+set WV2_FOUND=0
 reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv >nul 2>&1
-if not errorlevel 1 set "WV2_FOUND=1"
+if not errorlevel 1 set WV2_FOUND=1
 reg query "HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv >nul 2>&1
-if not errorlevel 1 set "WV2_FOUND=1"
+if not errorlevel 1 set WV2_FOUND=1
 
 if "%WV2_FOUND%"=="1" (
-    echo  [+] WebView2 Runtime: vstanovleno
+    echo  [+] WebView2 Runtime: installed
 ) else (
-    echo  [-] WebView2 Runtime: NE ZNAIDENO
-    echo      Vstanovit z: https://developer.microsoft.com/microsoft-edge/webview2/
+    echo  [-] WebView2 Runtime: NOT FOUND
+    echo      Install from: https://developer.microsoft.com/microsoft-edge/webview2/
     set /a ERRORS+=1
 )
 
@@ -147,23 +146,23 @@ if "%WV2_FOUND%"=="1" (
 echo.
 echo --- icon.ico ---
 
-if exist "..\icon.ico" (
-    echo  [+] icon.ico: znaideno ^(..\icon.ico^)
+if exist ..\icon.ico (
+    echo  [+] icon.ico: found (..\icon.ico)
 ) else (
-    echo  [-] icon.ico: NE ZNAIDENO
-    echo      Pomistit icon.ico u korin proektu
+    echo  [-] icon.ico: NOT FOUND
+    echo      Place icon.ico in the project root
     set /a ERRORS+=1
 )
 
 :: ---------------------------------------------------
-:: Pidsumok
+:: Summary
 :: ---------------------------------------------------
 echo.
 echo ======================================================
 if %ERRORS%==0 (
-    echo   [+] Vsi perevirky proideno. Mozhna zapuskaty build_all.bat
+    echo   [+] All checks passed. Ready to run build_all.bat
 ) else (
-    echo   [-] Znaideno problem: %ERRORS%. Vypravte ikh pered zbirkoju.
+    echo   [-] Issues found: %ERRORS%. Fix them before building.
 )
 echo ======================================================
 echo.

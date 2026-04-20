@@ -4,22 +4,19 @@
 
 #define AppName      "PDF Pre-Press"
 #define AppVersion   "1.0.0"
-#define AppPublisher "Your Name"
+#define AppPublisher "PDF Pre-Press"
 #define AppExeName   "pdf_prepress.exe"
 
 [Setup]
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
-AppPublisherURL=
-AppSupportURL=
-AppUpdatesURL=
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
 OutputDir=..\dist_installer
 OutputBaseFilename=setup_pdf_prepress
-SetupIconFile=..\icon.ico
+SetupIconFile=icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -27,32 +24,33 @@ PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 UninstallDisplayIcon={app}\{#AppExeName}
-DisableProgramGroupPage=no
+UninstallDisplayName={#AppName}
 
 [Languages]
-Name: "ukrainian"; MessagesFile: "compiler:Languages\Ukrainian.isl"
-Name: "english";   MessagesFile: "compiler:Default.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon";   Description: "Створити ярлик на робочому столі";    GroupDescription: "Додаткові значки:"; Flags: unchecked
-Name: "startmenuicon"; Description: "Додати до меню Пуск";                 GroupDescription: "Додаткові значки:"; Flags: checkedonce
-Name: "contextmenu";   Description: "Додати 'PDF Pre-Press' у контекстне меню PDF файлів"; GroupDescription: "Інтеграція:"; Flags: unchecked
+Name: "desktopicon";   Description: "Create a desktop shortcut";                        GroupDescription: "Additional icons:";    Flags: checkedonce
+Name: "startmenuicon"; Description: "Add to Start Menu";                                GroupDescription: "Additional icons:";    Flags: checkedonce
+Name: "contextmenu";   Description: "Add 'PDF Pre-Press' to right-click menu for PDF files"; GroupDescription: "Windows integration:"; Flags: unchecked
 
 [Files]
-; Main application — entire PyInstaller one-dir output
-Source: "..\dist\pdf_prepress\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Main executable
+Source: "..\dist\pdf_prepress\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+
+; All dependencies from _internal folder
+Source: "..\dist\pdf_prepress\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-; Start menu shortcut
-Name: "{group}\{#AppName}";         Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"; Tasks: startmenuicon
+; Start Menu shortcut
+Name: "{group}\{#AppName}";         Filename: "{app}\{#AppExeName}"; Tasks: startmenuicon
 ; Desktop shortcut
-Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{commondesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Registry]
 ; Context menu entry for .pdf files — adds "PDF Pre-Press" to right-click menu
-Root: HKCR; Subkey: ".pdf\shell\PDF Pre-Press";           ValueType: string; ValueName: ""; ValueData: "{#AppName}";                          Flags: uninsdeletekey; Tasks: contextmenu
-Root: HKCR; Subkey: ".pdf\shell\PDF Pre-Press";           ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#AppExeName},0";             Flags: uninsdeletekey; Tasks: contextmenu
-Root: HKCR; Subkey: ".pdf\shell\PDF Pre-Press\command";   ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1""";        Flags: uninsdeletekey; Tasks: contextmenu
+Root: HKCR; Subkey: ".pdf\shell\PDF Pre-Press";         ValueType: string; ValueName: ""; ValueData: "{#AppName}";                   Flags: uninsdeletekey; Tasks: contextmenu
+Root: HKCR; Subkey: ".pdf\shell\PDF Pre-Press\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""; Flags: uninsdeletekey; Tasks: contextmenu
 
 [UninstallDelete]
 ; Remove settings file created at runtime
@@ -60,7 +58,7 @@ Type: files; Name: "{app}\settings.json"
 
 [Run]
 ; Offer to launch the app after install
-Filename: "{app}\{#AppExeName}"; Description: "Запустити {#AppName}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
 // Check for Microsoft WebView2 Runtime (required by pywebview EdgeChromium backend)
@@ -79,10 +77,9 @@ procedure InitializeWizard();
 begin
   if not IsWebView2Installed() then
     MsgBox(
-      'Увага: Microsoft WebView2 Runtime не встановлено.' + #13#10 +
-      'Програма може не запуститись.' + #13#10 + #13#10 +
-      'Завантажте WebView2 Runtime з:' + #13#10 +
-      'https://developer.microsoft.com/microsoft-edge/webview2/' + #13#10 + #13#10 +
-      'Встановіть WebView2 перед першим запуском PDF Pre-Press.',
+      'Warning: Microsoft WebView2 Runtime is not installed.' + #13#10 +
+      'The application may not start correctly.' + #13#10 + #13#10 +
+      'Download from: https://developer.microsoft.com/microsoft-edge/webview2/' + #13#10 +
+      'Install it before launching PDF Pre-Press.',
       mbInformation, MB_OK);
 end;
