@@ -1,5 +1,5 @@
 {
-  "dpi": 150,
+  "dpi": 600,
   "odd_corners": {
     "tl": [
       0,
@@ -50,5 +50,6 @@
   "print_mode": "single",
   "interpolation": "INTER_CUBIC",
   "compression": "tiff_lzw",
-  "auto_open_file": true
+  "auto_open_file": true,
+  "raster_algorithm": "ghostscript"
 }

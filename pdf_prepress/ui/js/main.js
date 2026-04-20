@@ -201,6 +201,9 @@ const App = (() => {
     (pm === 'single' ? el.radioSingle : el.radioDouble).checked = true;
     _onPrintModeChange();
 
+    // Raster algorithm
+    if (s.raster_algorithm) RasterAlgorithm.setValue(s.raster_algorithm);
+
     // Auto open
     el.autoOpen.checked = s.auto_open_file !== false;
     _autoOpen = el.autoOpen.checked;
@@ -257,6 +260,7 @@ const App = (() => {
       print_mode:         el.radioSingle.checked ? 'single' : 'double',
       interpolation:      el.interpSelect.value || 'INTER_LANCZOS4',
       compression:        el.comprSelect.value  || 'tiff_lzw',
+      raster_algorithm:   RasterAlgorithm.selected(),
       auto_open_file:     el.autoOpen.checked,
       last_output_folder: _lastOutputFolder,
       ...iccSelections,
@@ -353,6 +357,7 @@ const App = (() => {
       print_mode:       settings.print_mode,
       interpolation:    settings.interpolation,
       compression:      settings.compression,
+      raster_algorithm: settings.raster_algorithm || RasterAlgorithm.selected(),
     });
   }
 
@@ -447,7 +452,8 @@ const App = (() => {
 
     await _buildModes();
     await _buildIccRows();
-    await _loadSettings();
+    await RasterAlgorithm.init('pymupdf');  // build algo selector with default
+    await _loadSettings();                  // may call RasterAlgorithm.setValue()
 
     _bindEvents();
     _initPreviews();

@@ -64,6 +64,9 @@ DEFAULT_SETTINGS: dict = {
 
     # Автоматично відкривати оброблений файл після завершення
     "auto_open_file": True,
+
+    # Алгоритм растеризації: "pymupdf" або "ghostscript"
+    "raster_algorithm": "pymupdf",
 }
 
 
@@ -107,8 +110,21 @@ def load_settings() -> dict:
         print(f"[settings] Не вдалось прочитати {_SETTINGS_FILE.name}: {exc}. Використовуються значення за замовчуванням.")
         return dict(DEFAULT_SETTINGS)
 
+    # Міграція: видалити застарілий ключ raster_method
+    user_data.pop("raster_method", None)
+
     # Зливаємо: DEFAULT_SETTINGS як база, user_data перезаписує
     merged = _deep_merge(DEFAULT_SETTINGS, user_data)
+
+    # Якщо збережено "ghostscript", але GS недоступний — відкат до pymupdf
+    if merged.get("raster_algorithm") == "ghostscript":
+        try:
+            from processor import get_gs_executable
+            get_gs_executable()
+        except Exception:
+            print("[settings] УВАГА: raster_algorithm=ghostscript, але GS не знайдено — використовується pymupdf")
+            merged["raster_algorithm"] = "pymupdf"
+
     return merged
 
 

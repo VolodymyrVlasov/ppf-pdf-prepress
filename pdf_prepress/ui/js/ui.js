@@ -335,6 +335,103 @@ const Progress = (() => {
 })();
 
 
+// ── Raster algorithm selector ─────────────────────────────────────────────
+
+const RasterAlgorithm = (() => {
+  let _selected   = 'pymupdf';
+  let _algorithms = [];  // cached after init
+
+  function selected() { return _selected; }
+
+  async function init(savedValue) {
+    const list   = document.getElementById('algo-list');
+    const descEl = document.getElementById('algo-description');
+    const noteEl = document.getElementById('algo-note');
+    if (!list) return;
+
+    _algorithms = await API.getRasterAlgorithms();
+    list.innerHTML = '';
+
+    _algorithms.forEach(algo => {
+      const item = document.createElement('div');
+      item.className = 'algo-item' + (algo.available ? '' : ' disabled');
+      item.dataset.value = algo.value;
+
+      const header = document.createElement('div');
+      header.className = 'algo-header';
+
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'raster-algo';
+      radio.className = 'algo-radio';
+      radio.value = algo.value;
+      radio.disabled = !algo.available;
+
+      const label = document.createElement('span');
+      label.className = 'algo-label';
+      label.textContent = algo.label;
+
+      header.appendChild(radio);
+      header.appendChild(label);
+
+      const shortEl = document.createElement('div');
+      shortEl.className = 'algo-short';
+      shortEl.textContent = algo.available
+        ? algo.short
+        : 'Ghostscript не знайдено у системі';
+
+      item.appendChild(header);
+      item.appendChild(shortEl);
+
+      if (algo.available) {
+        item.addEventListener('click', () => _activate(algo.value));
+      }
+
+      list.appendChild(item);
+    });
+
+    if (noteEl) {
+      noteEl.textContent =
+        'Кольорова модель растра визначається автоматично відповідно до обраного режиму обробки (CMYK / Grayscale / RGB)';
+    }
+
+    const initial = (_algorithms.find(a => a.value === savedValue && a.available))
+      ? savedValue
+      : 'pymupdf';
+    _activate(initial);
+  }
+
+  function _activate(value) {
+    _selected = value;
+
+    const list   = document.getElementById('algo-list');
+    const descEl = document.getElementById('algo-description');
+    if (!list) return;
+
+    list.querySelectorAll('.algo-item').forEach(item => {
+      const active = item.dataset.value === value;
+      item.classList.toggle('active', active);
+      const radio = item.querySelector('.algo-radio');
+      if (radio) radio.checked = active;
+    });
+
+    const algo = _algorithms.find(a => a.value === value);
+    if (descEl && algo) {
+      descEl.textContent = algo.description;
+      descEl.classList.add('visible');
+    }
+  }
+
+  function setValue(value) {
+    // Called from _loadSettings() — re-activates after DOM is ready
+    const item = document.querySelector(`#algo-list .algo-item[data-value="${value}"]:not(.disabled)`);
+    if (item) item.click();
+  }
+
+  return { init, selected, setValue };
+})();
+
+
 // ── Status bar ────────────────────────────────────────────────────────────
 
 const StatusBar = (() => {

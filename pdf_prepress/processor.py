@@ -4,7 +4,7 @@ processor.py — Ядро обробки зображень для PDF пре-п
 КЛЮЧОВА КОНЦЕПЦІЯ:
   ICC-профіль лише призначається (вбудовується як метадані OutputIntent).
   Числові значення пікселів НЕ змінюються.
-  Растеризація виконується через Ghostscript із прапором
+  При використанні Ghostscript растеризація виконується із прапором
   -dColorConversionStrategy=/LeaveColorUnchanged, що гарантує збереження
   оригінальних колірних значень (наприклад, CMYK 0,0,0,100 → залишається 0,0,0,100).
 """
@@ -28,8 +28,6 @@ from PIL import Image
 
 
 # Коренева директорія модуля та папка ICC-профілів.
-# У замороженому бандлі (PyInstaller) sys._MEIPASS вказує на папку з розпакованими
-# ресурсами; у звичайному режимі використовується розташування цього файлу.
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     _HERE = Path(sys._MEIPASS)
 else:
@@ -50,6 +48,49 @@ _PILLOW_COMPRESSION: dict[str, str | None] = {
     "tiff_lzw":     "tiff_lzw",
     "tiff_deflate": "tiff_adobe_deflate",
     "none":         None,
+}
+
+# ---------------------------------------------------------------------------
+# Алгоритми растеризації (публічна константа, імпортується app.py)
+# ---------------------------------------------------------------------------
+
+RASTER_ALGORITHMS: dict[str, dict] = {
+    "pymupdf": {
+        "label": "PyMuPDF",
+        "short": "Універсальний, без зовнішніх залежностей",
+        "description": (
+            "Растеризація виконується через вбудований рушій PyMuPDF. "
+            "Сторінки завжди конвертуються у RGB як проміжний формат, "
+            "незалежно від оригінальної кольорової моделі документа. "
+            "При подальшій конвертації у CMYK відбувається зворотне "
+            "перерахування RGB→CMYK, що призводить до втрати чистоти "
+            "плашкових кольорів: чорний текст (0,0,0,100K) стає "
+            "складеним чорним (~86C 87M 87Y 0K). "
+            "На дрібному тексті це може проявлятись як кольоровий ореол "
+            "при незначному суміщенні кольорових каналів на друці. "
+            "Рекомендовано для RGB-документів та попереднього перегляду."
+        ),
+        "requires_gs": False,
+    },
+    "ghostscript": {
+        "label": "Ghostscript",
+        "short": "Точна растеризація зі збереженням кольорової моделі",
+        "description": (
+            "Растеризація виконується Ghostscript — професійним "
+            "PostScript/PDF рушієм. "
+            "Кольорова модель растра відповідає обраному режиму обробки: "
+            "для CMYK-режиму сторінки растеризуються напряму у CMYK "
+            "без проміжного RGB, завдяки чому чорний текст (0,0,0,100K) "
+            "зберігається точно як (0,0,0,100K). "
+            "Це усуває кольорові ореоли навколо тексту і забезпечує "
+            "чистоту плашкових кольорів на відбитку. "
+            "Для RGB і Grayscale режимів також використовується прямий "
+            "шлях без зміни кольорового простору. "
+            "Рекомендовано для поліграфічної підготовки документів з "
+            "текстом, лініями та плашковими кольорами."
+        ),
+        "requires_gs": True,
+    },
 }
 
 
@@ -130,8 +171,7 @@ def get_gs_executable() -> str:
 def _find_ghostscript() -> str | None:
     """
     Знаходить виконуваний файл Ghostscript.
-    Обгортка навколо get_gs_executable() для зворотної сумісності;
-    повертає None замість виключення.
+    Обгортка навколо get_gs_executable(); повертає None замість виключення.
     """
     try:
         return get_gs_executable()
@@ -140,39 +180,35 @@ def _find_ghostscript() -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# 1. Растеризація PDF через Ghostscript
+# 1. Растеризація PDF
 # ---------------------------------------------------------------------------
 
 def rasterize_pdf(
     pdf_path: str,
     dpi: int = 300,
-    colorspace: str = "cmyk",
+    algorithm: str = "pymupdf",
+    color_mode: str = "rgb",
     log_callback: Callable[[str], None] | None = None,
 ) -> list[Image.Image]:
     """
-    Растеризує кожну сторінку PDF у PIL Image через Ghostscript.
+    Растеризує кожну сторінку PDF у PIL Image.
 
-    Ghostscript використовує прапор -dColorConversionStrategy=/LeaveColorUnchanged,
-    який забороняє будь-яке перетворення колірних значень.
-    Числа пікселів у вихідних зображеннях збігаються з оригінальними.
-
-    Якщо Ghostscript не знайдено — використовується PyMuPDF як запасний варіант
-    (лише для RGB; CMYK-значення у цьому режимі не гарантовано збережуться).
-
-    :param pdf_path:     Шлях до вхідного PDF-файлу.
-    :param dpi:          Роздільна здатність у точках на дюйм.
-    :param colorspace:   Цільовий колірний простір: «cmyk», «grayscale», «rgb».
+    :param pdf_path:   Шлях до вхідного PDF-файлу.
+    :param dpi:        Роздільна здатність у точках на дюйм.
+    :param algorithm:  «pymupdf» або «ghostscript».
+    :param color_mode: Цільовий кольоровий режим: «cmyk», «gray», «rgb».
+                       Визначається автоматично з режиму обробки — не задається користувачем.
     :param log_callback: Необов'язкова функція для передачі рядків логу.
-    :return:             Список PIL Image (по одному на сторінку).
+    :return:           Список PIL Image (по одному на сторінку).
+                       PyMuPDF завжди повертає RGB.
+                       Ghostscript повертає зображення у запитаному color_mode.
     """
     pdf_path = Path(pdf_path)
-    colorspace = colorspace.lower()
 
-    gs_exe = _find_ghostscript()
-
-    if gs_exe:
-        return _rasterize_via_ghostscript(pdf_path, dpi, colorspace, gs_exe, log_callback)
-    else:
+    if algorithm == "ghostscript":
+        gs_exe = _find_ghostscript()
+        if gs_exe:
+            return _rasterize_via_ghostscript(pdf_path, dpi, color_mode, gs_exe, log_callback)
         _log(
             "[processor] УВАГА: Ghostscript не знайдено. "
             "Використовується PyMuPDF (RGB). "
@@ -180,13 +216,15 @@ def rasterize_pdf(
             "Встановіть Ghostscript для коректної роботи.",
             log_callback,
         )
-        return _rasterize_via_pymupdf(pdf_path, dpi, colorspace, log_callback)
+
+    # pymupdf — завжди RGB
+    return _rasterize_via_pymupdf(pdf_path, dpi, log_callback)
 
 
 def _rasterize_via_ghostscript(
     pdf_path: Path,
     dpi: int,
-    colorspace: str,
+    color_mode: str,
     gs_exe: str,
     log_callback: Callable[[str], None] | None = None,
 ) -> list[Image.Image]:
@@ -196,11 +234,11 @@ def _rasterize_via_ghostscript(
     Вивід GS передається рядок за рядком у log_callback.
     """
     device_map = {
-        "cmyk":      "tiff32nc",
-        "grayscale": "tiffgray",
-        "rgb":       "tiff24nc",
+        "cmyk": "tiff32nc",
+        "gray": "tiffgray",
+        "rgb":  "tiff24nc",
     }
-    device = device_map.get(colorspace, "tiff32nc")
+    device = device_map.get(color_mode, "tiff32nc")
 
     with tempfile.TemporaryDirectory(prefix="pdfprepress_") as tmpdir:
         output_pattern = str(Path(tmpdir) / "page_%04d.tif")
@@ -213,10 +251,10 @@ def _rasterize_via_ghostscript(
             f"-sDEVICE={device}",
             f"-r{dpi}",
             "-dColorConversionStrategy=/LeaveColorUnchanged",
-            "-dUseCIEColor=false",
-            f"-sOutputFile={output_pattern}",
-            str(pdf_path),
         ]
+        if color_mode == "cmyk":
+            cmd.append("-dUseCIEColor=false")
+        cmd += [f"-sOutputFile={output_pattern}", str(pdf_path)]
 
         _log(f"[processor] Ghostscript: {' '.join(cmd)}", log_callback)
 
@@ -255,13 +293,12 @@ def _rasterize_via_ghostscript(
 def _rasterize_via_pymupdf(
     pdf_path: Path,
     dpi: int,
-    colorspace: str,
     log_callback: Callable[[str], None] | None = None,
 ) -> list[Image.Image]:
     """
-    Запасний варіант растеризації через PyMuPDF (fitz).
-    Завжди повертає RGB; для CMYK-режиму виконується проста Pillow-конвертація
-    (значення пікселів при цьому змінюються — лише для аварійного запуску).
+    Растеризація через PyMuPDF (fitz). Завжди повертає RGB.
+    Конвертація у цільовий кольоровий простір виконується в process_pdf()
+    після застосування деформації.
     """
     import fitz  # PyMuPDF
 
@@ -275,12 +312,6 @@ def _rasterize_via_pymupdf(
         pixmap = page.get_pixmap(matrix=matrix, alpha=False)
         img_bytes = pixmap.tobytes("png")
         pil_img = Image.open(io.BytesIO(img_bytes)).copy()
-
-        if colorspace == "cmyk" and pil_img.mode != "CMYK":
-            pil_img = pil_img.convert("CMYK")
-        elif colorspace == "grayscale" and pil_img.mode != "L":
-            pil_img = pil_img.convert("L")
-
         _log(f"[processor] PyMuPDF: сторінка {page_num + 1}", log_callback)
         images.append(pil_img)
 
@@ -289,20 +320,17 @@ def _rasterize_via_pymupdf(
 
 
 # ---------------------------------------------------------------------------
-# 2. Конвертація у CMYK (утиліта для прямого виклику / тестів)
+# 2. Конвертація у CMYK
 # ---------------------------------------------------------------------------
 
 def convert_to_cmyk(image: Image.Image) -> Image.Image:
     """
     Конвертує PIL Image у режим CMYK засобами Pillow.
 
-    УВАГА: ця функція виконує математичне перерахування пікселів
-    і НЕ гарантує збереження оригінальних колірних значень.
-    У повному циклі обробки (process_pdf) colorspace-конвертація
-    виконується Ghostscript без зміни числових значень.
-
-    :param image: Вхідне зображення.
-    :return:      Зображення у режимі CMYK.
+    УВАГА: ця функція виконує математичне перерахування пікселів.
+    Чорний текст (0,0,0,100K) перетвориться на складений чорний.
+    Використовується лише для алгоритму PyMuPDF — для Ghostscript
+    конвертація виконується на рівні растеризатора.
     """
     if image.mode == "CMYK":
         return image
@@ -312,15 +340,13 @@ def convert_to_cmyk(image: Image.Image) -> Image.Image:
 
 
 # ---------------------------------------------------------------------------
-# 3. Конвертація у відтінки сірого (утиліта для прямого виклику / тестів)
+# 3. Конвертація у відтінки сірого
 # ---------------------------------------------------------------------------
 
 def convert_to_grayscale(image: Image.Image) -> Image.Image:
     """
     Конвертує PIL Image у режим відтінків сірого (L).
-
-    :param image: Вхідне зображення.
-    :return:      Зображення у режимі «L».
+    Використовується лише для алгоритму PyMuPDF.
     """
     if image.mode == "L":
         return image
@@ -344,8 +370,8 @@ def apply_warp(
         {"tl": (dx, dy), "tr": (dx, dy), "bl": (dx, dy), "br": (dx, dy)}
     Позитивний dx → вправо, позитивний dy → вниз.
 
-    Колірні значення пікселів не змінюються — виконується лише геометрична
-    трансформація координат.
+    Підтримує будь-який PIL-режим: RGB, CMYK, L тощо.
+    Числові значення пікселів не змінюються — виконується лише геометрична трансформація.
 
     :param image:         Вхідне PIL Image.
     :param corners_mm:    Словник зміщень для кожного з чотирьох кутів.
@@ -376,22 +402,16 @@ def apply_warp(
 
     M = cv2.getPerspectiveTransform(src_pts, dst_pts)
 
-    original_mode = image.mode
-    cv_img = np.array(image)
-
+    arr = np.array(image)
     warped = cv2.warpPerspective(
-        cv_img,
+        arr,
         M,
         (w, h),
         flags=interpolation,
         borderMode=cv2.BORDER_REPLICATE,
     )
 
-    result = Image.fromarray(warped)
-    if result.mode != original_mode:
-        result = Image.frombytes(original_mode, (w, h), warped.tobytes())
-
-    return result
+    return Image.fromarray(warped, mode=image.mode)
 
 
 # ---------------------------------------------------------------------------
@@ -411,10 +431,10 @@ def assemble_pdf(
     Кожне зображення спочатку записується як TIFF у тимчасову папку,
     потім передається у img2pdf — без JPEG-перекомпресії.
 
-    :param images:      Список зображень (по одному на сторінку).
-    :param output_path: Шлях до вихідного PDF.
-    :param dpi:         Роздільна здатність для метаданих PDF.
-    :param compression: Стиснення проміжних TIFF: «tiff_lzw», «tiff_deflate», «none».
+    :param images:       Список зображень (по одному на сторінку).
+    :param output_path:  Шлях до вихідного PDF.
+    :param dpi:          Роздільна здатність для метаданих PDF.
+    :param compression:  Стиснення проміжних TIFF: «tiff_lzw», «tiff_deflate», «none».
     :param log_callback: Необов'язкова функція для передачі рядків логу.
     """
     output_path = str(output_path)
@@ -461,7 +481,6 @@ def assign_icc_profile(
 
     НЕ змінює числові значення пікселів — лише додає метадані,
     що описують, у якому колірному просторі вже записані числа.
-    RIP-процесор читає цей тег і коректно інтерпретує дані.
 
     :param pdf_path:    Шлях до PDF-файлу для модифікації (перезаписується).
     :param icc_path:    Шлях до .icc-файлу профілю.
@@ -508,27 +527,34 @@ def process_pdf(
     print_mode: str = "double",
     interpolation: str = "INTER_LANCZOS4",
     compression: str = "tiff_lzw",
+    algorithm: str = "pymupdf",
     log_callback: Callable[[str], None] | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
     stop_event: threading.Event | None = None,
 ) -> str | None:
     """
     Повний цикл обробки PDF:
-      растеризація (GS, без зміни чисел) → warp → збірка PDF → призначення ICC.
+      растеризація → warp (опційно) → конвертація кольору (тільки PyMuPDF) →
+      збірка PDF → призначення ICC.
+
+    При algorithm="ghostscript" растеризація виконується напряму у цільовому
+    кольоровому просторі — крок конвертації пропускається.
+    При algorithm="pymupdf" растеризація завжди у RGB, конвертація — після warp.
 
     :param pdf_path:          Шлях до вхідного PDF.
-    :param mode:              «cmyk», «grayscale», «cmyk_warp», «grayscale_warp», «rgb», «rgb_warp».
+    :param mode:              «cmyk», «grayscale», «rgb», «cmyk_warp», «grayscale_warp», «rgb_warp».
     :param dpi:               Роздільна здатність обробки.
     :param odd_corners:       Зміщення кутів для непарних сторінок (мм).
     :param even_corners:      Зміщення кутів для парних сторінок (мм).
     :param output_suffix:     Суфікс, що додається до імені файлу перед «.pdf».
     :param icc_path:          Шлях до .icc-файлу. None → профіль не вбудовується.
     :param print_mode:        «double» — парні/непарні; «single» — всі через FRONT.
-    :param interpolation:     Ім'я константи cv2 для warpPerspective (напр. «INTER_LANCZOS4»).
+    :param interpolation:     Ім'я константи cv2 для warpPerspective.
     :param compression:       Стиснення проміжних TIFF: «tiff_lzw», «tiff_deflate», «none».
+    :param algorithm:         «pymupdf» або «ghostscript».
     :param log_callback:      Функція, що отримує рядки логу в реальному часі.
     :param progress_callback: Функція progress_callback(current, total) після кожної сторінки.
-    :param stop_event:        threading.Event; якщо встановлено — зупиняє обробку після поточної сторінки.
+    :param stop_event:        threading.Event; зупиняє обробку після поточної сторінки.
     :return:                  Шлях до вихідного PDF-файлу, або None якщо скасовано.
     """
     pdf_path = Path(pdf_path)
@@ -539,17 +565,35 @@ def process_pdf(
     if mode not in valid_modes:
         raise ValueError(f"Невідомий режим «{mode}». Допустимі: {valid_modes}")
 
-    use_warp    = mode.endswith("_warp")
-    base_mode   = mode.removesuffix("_warp")
-    colorspace  = base_mode
+    use_warp  = mode.endswith("_warp")
+    base_mode = mode.removesuffix("_warp")
+
+    # Кольоровий режим растра визначається автоматично з base_mode
+    _color_mode_map = {"cmyk": "cmyk", "grayscale": "gray", "rgb": "rgb"}
+    color_mode = _color_mode_map[base_mode]
 
     interp_const = _INTERP_MAP.get(interpolation, cv2.INTER_LANCZOS4)
 
     # --- Растеризація ---
-    _log(f"[processor] Растеризація: {pdf_path.name} @ {dpi} DPI  [{colorspace.upper()}]", log_callback)
-    pages = rasterize_pdf(str(pdf_path), dpi=dpi, colorspace=colorspace, log_callback=log_callback)
+    _log(
+        f"[processor] Растеризація: {pdf_path.name} @ {dpi} DPI  "
+        f"[{color_mode.upper()}]  алгоритм={algorithm}",
+        log_callback,
+    )
+    pages = rasterize_pdf(
+        str(pdf_path), dpi=dpi, algorithm=algorithm,
+        color_mode=color_mode, log_callback=log_callback,
+    )
     total = len(pages)
     _log(f"[processor] Сторінок растеризовано: {total}", log_callback)
+
+    # При Ghostscript сторінки вже у цільовому кольоровому просторі
+    gs_direct = (algorithm == "ghostscript" and _find_ghostscript() is not None)
+    if gs_direct:
+        _log(
+            f"[processor] Растеризовано напряму у {color_mode.upper()} — конвертація не потрібна",
+            log_callback,
+        )
 
     if use_warp and print_mode == "single":
         _log("[processor] Режим: 1-сторонній друк — деформація FRONT для всіх сторінок", log_callback)
@@ -559,7 +603,6 @@ def process_pdf(
     cancelled = False
 
     for i, page_img in enumerate(pages):
-        # Перевірка сигналу зупинки
         if stop_event is not None and stop_event.is_set():
             _log(f"[processor] ⛔ Сигнал зупинки отримано після сторінки {i}", log_callback)
             cancelled = True
@@ -570,9 +613,10 @@ def process_pdf(
 
         _log(f"[processor] Растрування сторінки {page_num} / {total}...", log_callback)
 
+        # Деформація (підтримує будь-який PIL-режим)
         if use_warp:
             if print_mode == "single":
-                corners = odd_corners
+                corners    = odd_corners
                 side_label = "FRONT (1-ст друк)"
             else:
                 corners    = odd_corners if is_odd else even_corners
@@ -583,6 +627,14 @@ def process_pdf(
                 log_callback,
             )
             page_img = apply_warp(page_img, corners, dpi, interpolation=interp_const)
+
+        # Конвертація кольору — лише для PyMuPDF (GS вже повернув правильний режим)
+        if not gs_direct:
+            if base_mode == "cmyk":
+                page_img = convert_to_cmyk(page_img)
+            elif base_mode == "grayscale":
+                page_img = convert_to_grayscale(page_img)
+            # rgb: PyMuPDF вже повертає RGB — нічого не робимо
 
         processed.append(page_img)
 
@@ -615,7 +667,6 @@ def process_pdf(
     cs_label_map = {"cmyk": "CMYK", "grayscale": "Grayscale", "rgb": "RGB"}
     cs_label = cs_label_map.get(base_mode, "CMYK")
 
-    _log(f"[processor] Конвертація кольору: {cs_label}", log_callback)
     _log(f"[processor] Збирання PDF: {output_path.name}", log_callback)
     assemble_pdf(processed, str(output_path), dpi=dpi, compression=compression, log_callback=log_callback)
 

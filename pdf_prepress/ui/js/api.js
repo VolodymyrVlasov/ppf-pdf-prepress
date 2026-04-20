@@ -102,6 +102,12 @@ const API = (() => {
     return a.get_icc_spaces();
   }
 
+  async function getRasterAlgorithms() {
+    const a = _api();
+    if (!a) return [];
+    return a.get_raster_algorithms();
+  }
+
   return {
     ready,
     isAvailable,
@@ -115,5 +121,6 @@ const API = (() => {
     stopProcessing,
     getModes,
     getIccSpaces,
+    getRasterAlgorithms,
   };
 })();

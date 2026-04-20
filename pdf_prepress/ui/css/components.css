@@ -445,3 +445,99 @@
   white-space: nowrap;
   margin-left: auto;
 }
+
+/* ── Raster algorithm selector ────────────────────────────── */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.form-group > .input-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.algo-list {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.algo-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  background: var(--color-input-bg);
+  transition: border-color var(--transition-fast),
+              background var(--transition-fast);
+}
+
+.algo-item:hover {
+  border-color: var(--color-border-focus);
+  background: var(--color-accent-light);
+}
+
+.algo-item.active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-light);
+}
+
+.algo-item.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.algo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.algo-radio {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--color-accent);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.algo-label {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.algo-short {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.algo-description {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-dropdown-bg);
+  border-radius: var(--radius-input);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+  display: none;
+}
+
+.algo-description.visible {
+  display: block;
+}
+
+.algo-note {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  font-style: italic;
+}

@@ -11,7 +11,10 @@ import threading
 from pathlib import Path
 
 from settings import load_settings, save_settings, DEFAULT_SETTINGS
-from processor import process_pdf, get_profiles as _get_profiles, ICC_DIR
+from processor import (
+    process_pdf, get_profiles as _get_profiles, ICC_DIR,
+    RASTER_ALGORITHMS, get_gs_executable,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -178,9 +181,10 @@ class Api:
                 odd_corners = params.get("odd_corners", DEFAULT_SETTINGS["odd_corners"])
                 even_corners= params.get("even_corners", DEFAULT_SETTINGS["even_corners"])
                 output_suffix = params.get("output_suffix", "_CMYK")
-                print_mode  = params.get("print_mode", "double")
+                print_mode    = params.get("print_mode", "double")
                 interpolation = params.get("interpolation", "INTER_LANCZOS4")
-                compression = params.get("compression", "tiff_lzw")
+                compression   = params.get("compression", "tiff_lzw")
+                algorithm     = params.get("raster_algorithm", "pymupdf")
 
                 icc_path = None
                 if params.get("use_icc_profile"):
@@ -204,6 +208,7 @@ class Api:
                     print_mode=print_mode,
                     interpolation=interpolation,
                     compression=compression,
+                    algorithm=algorithm,
                     log_callback=_log_cb,
                     progress_callback=_progress_cb,
                     stop_event=stop_evt,
@@ -237,4 +242,23 @@ class Api:
         return [
             {"csKey": cs, "label": label, "settingsKey": sk}
             for cs, label, sk in ICC_SPACES
+        ]
+
+    def get_raster_algorithms(self) -> list[dict]:
+        """Returns list of raster algorithm descriptors for the UI selector."""
+        try:
+            get_gs_executable()
+            gs_ok = True
+        except FileNotFoundError:
+            gs_ok = False
+
+        return [
+            {
+                "value":       key,
+                "label":       val["label"],
+                "short":       val["short"],
+                "description": val["description"],
+                "available":   True if not val["requires_gs"] else gs_ok,
+            }
+            for key, val in RASTER_ALGORITHMS.items()
         ]
